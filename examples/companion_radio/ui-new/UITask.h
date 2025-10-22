@@ -19,6 +19,12 @@
   #include <helpers/ui/GenericVibration.h>
 #endif
 
+#if UI_HAS_JOYSTICK
+  #define PRESS_LABEL "press Enter"
+#else
+  #define PRESS_LABEL "long press"
+#endif
+
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
 
@@ -51,15 +57,20 @@ class UITask : public AbstractUITask {
   UIScreen* splash;
   UIScreen* home;
   UIScreen* msg_preview;
+#if UI_QUICK_MSG
+  UIScreen* quick_msg;
+#endif
   UIScreen* curr;
 
   void userLedHandler();
 
   // Button action handlers
-  char checkDisplayOn(char c);
-  char handleLongPress(char c);
-  char handleDoubleClick(char c);
-  char handleTripleClick(char c);
+  bool checkDisplayOn();
+  void handleLongPress(char c);
+  void handleSingleClick(char c);
+  void handleDoubleClick(char c);
+  void handleTripleClick(char c);
+  bool uiHandleKey(char c);
 
   void setCurrScreen(UIScreen* c);
 
@@ -73,6 +84,9 @@ public:
   void begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs);
 
   void gotoHomeScreen() { setCurrScreen(home); }
+#if UI_QUICK_MSG
+  void gotoQuickMsgScreen() { setCurrScreen(quick_msg); }
+#endif
   void showAlert(const char* text, int duration_millis);
   int  getMsgCount() const { return _msgcount; }
   bool hasDisplay() const { return _display != NULL; }
@@ -81,7 +95,6 @@ public:
   void toggleBuzzer();
   bool getGPSState();
   void toggleGPS();
-
 
   // from AbstractUITask
   void msgRead(int msgcount) override;

@@ -683,9 +683,11 @@ void EnvironmentSensorManager::start_gps() {
   _location->begin();
   _location->reset();
 
-#ifndef PIN_GPS_RESET
+  #ifndef PIN_GPS_EN
   MESH_DEBUG_PRINTLN("Start GPS is N/A on this board. Actual GPS state unchanged");
-#endif
+  #else
+  MESH_DEBUG_PRINTLN("Started GPS");
+  #endif
 }
 
 void EnvironmentSensorManager::stop_gps() {
@@ -700,6 +702,8 @@ void EnvironmentSensorManager::stop_gps() {
 
   #ifndef PIN_GPS_EN
   MESH_DEBUG_PRINTLN("Stop GPS is N/A on this board. Actual GPS state unchanged");
+  #else
+  MESH_DEBUG_PRINTLN("Stopped GPS");
   #endif
 }
 
