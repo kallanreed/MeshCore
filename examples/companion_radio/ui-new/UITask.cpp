@@ -6,16 +6,8 @@
   #include <WiFi.h>
 #endif
 
-#ifdef TEST_SCREEN
-  #include <helpers/ChannelDetails.h>
-#endif
-
 #if UI_QUICK_MSG
 #include "QuickMsg.h"
-#endif
-
-#ifdef TEST_SCREEN
-  #include <helpers/ChannelDetails.h>
 #endif
 
 #ifndef AUTO_OFF_MILLIS
