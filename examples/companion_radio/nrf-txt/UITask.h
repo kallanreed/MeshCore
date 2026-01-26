@@ -7,6 +7,8 @@
 #include <helpers/BaseSerialInterface.h>
 #include <Arduino.h>
 #include <helpers/sensors/LPPDataHelpers.h>
+#include <helpers/RefCountedDigitalPin.h>
+#include "hardware.h"
 
 #ifndef LED_STATE_ON
   #define LED_STATE_ON 1
@@ -28,6 +30,9 @@
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
 
+// Used to control whether Vext is powered.
+extern RefCountedDigitalPin vext_power;
+
 class UITask : public AbstractUITask {
   DisplayDriver* _display;
   SensorManager* _sensors;
@@ -37,6 +42,7 @@ class UITask : public AbstractUITask {
 #ifdef PIN_VIBRATION
   GenericVibration vibration;
 #endif
+  CardKB _keyboard;
   unsigned long _next_refresh, _auto_off;
   NodePrefs* _node_prefs;
   char _alert[80];
@@ -76,7 +82,11 @@ class UITask : public AbstractUITask {
 
 public:
 
-  UITask(mesh::MainBoard* board, BaseSerialInterface* serial) : AbstractUITask(board, serial), _display(NULL), _sensors(NULL) {
+  UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
+    : AbstractUITask(board, serial)
+    , _display(NULL)
+    , _sensors(NULL)
+    , _keyboard(&vext_power) {
     next_batt_chck = _next_refresh = 0;
     ui_started_at = 0;
     curr = NULL;

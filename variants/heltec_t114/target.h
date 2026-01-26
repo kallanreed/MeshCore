@@ -8,6 +8,7 @@
 #include <helpers/AutoDiscoverRTCClock.h>
 #include <helpers/SensorManager.h>
 #include <helpers/sensors/LocationProvider.h>
+#include <helpers/RefCountedDigitalPin.h>
 
 #ifdef DISPLAY_CLASS
 #include <helpers/ui/MomentaryButton.h>
@@ -41,6 +42,7 @@ extern T114Board board;
 extern WRAPPER_CLASS radio_driver;
 extern AutoDiscoverRTCClock rtc_clock;
 extern T114SensorManager sensors;
+extern RefCountedDigitalPin vext_power;
 
 #ifdef DISPLAY_CLASS
   extern DISPLAY_CLASS display;

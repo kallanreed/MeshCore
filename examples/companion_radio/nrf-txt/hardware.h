@@ -2,23 +2,45 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <helpers/RefCountedDigitalPin.h>
 
-#define NRF_TXT_KEYBOARD_ADDR 0x5F
+#define CARDKB_ADDR 0x5F
 
-#ifndef NRF_TXT_KEYBOARD_POLL_MS
-  #define NRF_TXT_KEYBOARD_POLL_MS 20
-#endif
+class CardKB {
+  RefCountedDigitalPin* _vext_power;
+  bool _begun = false;
 
-static inline char nrfTxtKeyboardPoll() {
-  static uint32_t next_poll = 0;
-  if ((int32_t)(millis() - next_poll) < 0) {
+public:
+  explicit CardKB(RefCountedDigitalPin* vext_power) : _vext_power(vext_power) { }
+
+  ~CardKB() {
+    end();
+  }
+
+  void begin() {
+    if (_begun || !_vext_power)
+      return;
+    _vext_power->claim();
+    _begun = true;
+  }
+
+  void end() {
+    if (!_begun || !_vext_power)
+      return;
+    _vext_power->release();
+    _begun = false;
+  }
+
+  uint8_t readKeyboard() {
+    if (!_begun)
+      return 0;
+
+    Wire.requestFrom(CARDKB_ADDR, 1);
+
+    // TODO: handle multiple bytes with a buffer.
+    if (Wire.available())
+      return Wire.read();
+
     return 0;
   }
-  next_poll = millis() + NRF_TXT_KEYBOARD_POLL_MS;
-
-  Wire.requestFrom((uint8_t)NRF_TXT_KEYBOARD_ADDR, (uint8_t)1);
-  if (Wire.available()) {
-    return (char)Wire.read();
-  }
-  return 0;
-}
+};

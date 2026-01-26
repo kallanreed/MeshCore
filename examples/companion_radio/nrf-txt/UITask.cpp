@@ -554,6 +554,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   _display = display;
   _sensors = sensors;
   _auto_off = millis() + AUTO_OFF_MILLIS;
+  _keyboard.begin();
 
 #if defined(PIN_USER_BTN)
   user_btn.begin();
@@ -721,9 +722,9 @@ bool UITask::isButtonPressed() const {
 }
 
 void UITask::loop() {
-  char kb = nrfTxtKeyboardPoll();
+  uint8_t kb = _keyboard.readKeyboard();
   if (kb != 0) {
-    MESH_DEBUG_PRINTLN("KB: 0x%02X", (uint8_t)kb);
+    MESH_DEBUG_PRINTLN("KB: 0x%02X", kb);
   }
 #if UI_HAS_JOYSTICK
   int ev = user_btn.check();
