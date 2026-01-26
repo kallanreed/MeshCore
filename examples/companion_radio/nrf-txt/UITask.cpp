@@ -725,6 +725,17 @@ void UITask::loop() {
   uint8_t kb = _keyboard.readKeyboard();
   if (kb != 0) {
     MESH_DEBUG_PRINTLN("KB: 0x%02X", kb);
+    switch (kb) {
+      // TODO: Key mapping in keyboard class?
+      // TODO: Support long press and all that?
+      case KEY_UP:
+      case KEY_DOWN:
+      case KEY_LEFT:
+      case KEY_RIGHT:
+      case KEY_ENTER:
+        handleSingleClick(kb);
+        break;
+    }
   }
 #if UI_HAS_JOYSTICK
   int ev = user_btn.check();
