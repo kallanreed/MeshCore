@@ -8,8 +8,8 @@
 #endif
 
 static constexpr const char* messages[] {
-  "test", "ping", "hello", "ack", "yes", "no", "share location",
-  "come to me", "going to you", "help", "SOS"
+  "hello", "bye", "yes", "no", "share location", "no keyboard",
+  "come to me", "going to you", "help"
 };
 static constexpr size_t messages_count = COUNTOF(messages);
 
@@ -20,18 +20,18 @@ QuickMsgScreen::QuickMsgScreen(UITask* task)
 int QuickMsgScreen::render(DisplayDriver& display) {
   display.setColor(DisplayDriver::YELLOW);
   display.setTextSize(2);
-  display.drawTextCentered(display.width() / 2, 2, "quick messages");
+  display.drawTextCentered(display.width() / 2, 2, QUICK_MSG_UI_STR);
 
   display.setColor(DisplayDriver::GREEN);
   display.setTextSize(1);
   display.setCursor(2, _row_defs[0]);
-  display.print("message:");
-  display.setCursor(42, _row_defs[0]);
+  display.print(QUICK_MSG_STR);
+  display.setCursor(QUICK_MSG_OFFSET, _row_defs[0]);
   display.print(getMessageText());
 
   display.setCursor(2, _row_defs[1]);
-  display.print("channel:");
-  display.setCursor(42, _row_defs[1]);
+  display.print(QUICK_CHANNEL_STR);
+  display.setCursor(QUICK_CHANNEL_OFFSET, _row_defs[1]);
   display.print(getChannelName());
 
   display.drawTextCentered(display.width() / 2, _row_defs[2], "[send]");

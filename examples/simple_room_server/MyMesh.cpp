@@ -165,7 +165,10 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
     telemetry.reset();
     telemetry.addVoltage(TELEM_CHANNEL_SELF, (float)board.getBattMilliVolts() / 1000.0f);
     // query other sensors -- target specific
-    sensors.querySensors((sender->isAdmin() ? 0xFF : 0x00) & perm_mask, telemetry);
+    if ((sender->permissions & PERM_ACL_ROLE_MASK) == PERM_ACL_GUEST) {
+      perm_mask = 0x00;  // just base telemetry allowed
+    }
+    sensors.querySensors(perm_mask, telemetry);
 
     uint8_t tlen = telemetry.getSize();
     memcpy(&reply_data[4], telemetry.getBuffer(), tlen);
@@ -329,6 +332,10 @@ void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const m
       dirty_contacts_expiry = futureMillis(LAZY_CONTACTS_WRITE_DELAY);
     }
 
+    if (packet->isRouteFlood()) {
+      client->out_path_len = -1;  // need to rediscover out_path
+    }
+
     uint32_t now = getRTCClock()->getCurrentTimeUnique();
     memcpy(reply_data, &now, 4); // response packets always prefixed with timestamp
     // TODO: maybe reply with count of messages waiting to be synced for THIS client?
@@ -391,7 +398,7 @@ void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, 
   if (type == PAYLOAD_TYPE_TXT_MSG && len > 5) { // a CLI command or new Post
     uint32_t sender_timestamp;
     memcpy(&sender_timestamp, data, 4); // timestamp (by sender's RTC clock - which could be wrong)
-    uint flags = (data[4] >> 2);        // message attempt number, and other flags
+    uint8_t flags = (data[4] >> 2);        // message attempt number, and other flags
 
     if (!(flags == TXT_TYPE_PLAIN || flags == TXT_TYPE_CLI_DATA)) {
       MESH_DEBUG_PRINTLN("onPeerDataRecv: unsupported command flags received: flags=%02x", (uint32_t)flags);
@@ -638,6 +645,8 @@ void MyMesh::begin(FILESYSTEM *fs) {
   updateAdvertTimer();
   updateFloodAdvertTimer();
 
+  board.setAdcMultiplier(_prefs.adc_multiplier);
+
 #if ENV_INCLUDE_GPS == 1
   applyGpsPrefs();
 #endif
@@ -806,7 +815,7 @@ void MyMesh::loop() {
       if (c->extra.room.pending_ack && millisHasNowPassed(c->extra.room.ack_timeout)) {
         c->extra.room.push_failures++;
         c->extra.room.pending_ack = 0; // reset  (TODO: keep prev expected_ack's in a list, incase they arrive LATER, after we retry)
-        MESH_DEBUG_PRINTLN("pending ACK timed out: push_failures: %d", (uint32_t)c->push_failures);
+        MESH_DEBUG_PRINTLN("pending ACK timed out: push_failures: %d", (uint32_t)c->extra.room.push_failures);
       }
     }
     // check next Round-Robin client, and sync next new post

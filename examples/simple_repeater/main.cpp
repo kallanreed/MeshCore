@@ -19,11 +19,18 @@ void halt() {
 
 static char command[160];
 
+// For power saving
+unsigned long lastActive = 0; // mark last active time
+unsigned long nextSleepinSecs = 120; // next sleep in seconds. The first sleep (if enabled) is after 2 minutes from boot
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   board.begin();
+
+  // For power saving
+  lastActive = millis(); // mark last active time since boot
 
 #ifdef DISPLAY_CLASS
   if (display.begin()) {
@@ -91,14 +98,16 @@ void loop() {
     if (c != '\n') {
       command[len++] = c;
       command[len] = 0;
+      Serial.print(c);
     }
-    Serial.print(c);
+    if (c == '\r') break;
   }
   if (len == sizeof(command)-1) {  // command buffer full
     command[sizeof(command)-1] = '\r';
   }
 
   if (len > 0 && command[len - 1] == '\r') {  // received complete line
+    Serial.print('\n');
     command[len - 1] = 0;  // replace newline with C string null terminator
     char reply[160];
     the_mesh.handleCommand(0, command, reply);  // NOTE: there is no sender_timestamp via serial!
@@ -115,4 +124,15 @@ void loop() {
   ui_task.loop();
 #endif
   rtc_clock.tick();
+
+  if (the_mesh.getNodePrefs()->powersaving_enabled &&                     // To check if power saving is enabled
+      the_mesh.millisHasNowPassed(lastActive + nextSleepinSecs * 1000)) { // To check if it is time to sleep
+    if (!the_mesh.hasPendingWork()) { // No pending work. Safe to sleep
+      board.sleep(1800);             // To sleep. Wake up after 30 minutes or when receiving a LoRa packet
+      lastActive = millis();
+      nextSleepinSecs = 5;  // Default: To work for 5s and sleep again
+    } else {
+      nextSleepinSecs += 5; // When there is pending work, to work another 5s
+    }
+  }
 }
