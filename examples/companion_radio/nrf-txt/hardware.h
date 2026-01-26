@@ -32,15 +32,17 @@ public:
   }
 
   uint8_t readKeyboard() {
+    uint8_t kb = 0;
+
     if (!_begun)
-      return 0;
+      return kb;
 
-    Wire.requestFrom(CARDKB_ADDR, 1);
+    if(Wire.requestFrom(CARDKB_ADDR, 1)) {
+      // TODO: This should read into a buffer.
+      while (Wire.available())
+        kb = Wire.read();
+    }
 
-    // TODO: handle multiple bytes with a buffer.
-    if (Wire.available())
-      return Wire.read();
-
-    return 0;
+    return kb;
   }
 };

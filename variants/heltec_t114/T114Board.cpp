@@ -33,9 +33,13 @@ void T114Board::initiateShutdown(uint8_t reason) {
 #endif // NRF52_POWER_MANAGEMENT
 
 void T114Board::disablePeripheralPower() {
-  vext_power.release();
   pinMode(GPS_EN, OUTPUT);
   digitalWrite(GPS_EN, LOW);
+}
+
+void T114Board::enablePeripheralPower() {
+  pinMode(GPS_EN, OUTPUT);
+  digitalWrite(GPS_EN, HIGH);
 }
 
 void T114Board::powerOff() {
@@ -72,6 +76,7 @@ void T114Board::begin() {
   digitalWrite(SX126X_POWER_EN, HIGH);
   delay(10); // give sx1262 some time to power up
 
+  // Set up the shared Vext control pin.
   vext_power.begin();
-  vext_power.claim();
+  enablePeripheralPower();
 }

@@ -11,6 +11,7 @@
 
 class T114Board : public NRF52BoardOTA {
 protected:
+  void enablePeripheralPower();
   void disablePeripheralPower();
 #ifdef NRF52_POWER_MANAGEMENT
   void initiateShutdown(uint8_t reason) override;
