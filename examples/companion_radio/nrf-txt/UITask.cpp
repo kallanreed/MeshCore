@@ -1,5 +1,6 @@
 #include "UITask.h"
 
+#include "../MyMesh.h"
 #include "screens.h"
 #include "target.h"
 
@@ -69,7 +70,25 @@ void UITask::newMsg(
   const char* from_name,
   const char* text,
   int msgcount) {}
-void UITask::notify(UIEventType t) {}
+
+void UITask::notify(UIEventType t) {
+  switch(t) {
+    case UIEventType::contactMessage:
+      _buzzer.play("MsgRcv3:d=4,o=6,b=200:32e,32g,32b,16c7");
+      break;
+    case UIEventType::channelMessage:
+      _buzzer.play("kerplop:d=16,o=6,b=120:32g#,32c#");
+      break;
+    case UIEventType::ack:
+      _buzzer.play("ack:d=32,o=8,b=200:c,e");
+      break;
+    case UIEventType::roomMessage:
+    case UIEventType::newContactMessage:
+    case UIEventType::none:
+    default:
+      break;
+  }
+}
 
 void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
@@ -77,6 +96,10 @@ void UITask::loop() {
     MESH_DEBUG_PRINTLN("%02x", kb);
     if (kb == 'Q')
       shutdown();
+    else if (kb == 'G')
+      toggleGPS();
+    else if (kb == 'B')
+      toggleBuzzer();
   }
 
   if (_buzzer.isPlaying())
@@ -84,13 +107,51 @@ void UITask::loop() {
 
   if (_curr)
     _curr->poll();
-    
+
   dispatchRender();
 }
 
 void UITask::setCurrent(UIScreen* screen) {
   _curr = screen;
   renderAfter(0);
+}
+
+void UITask::toggleGPS() {
+  if (!_sensors)
+    return;
+
+  // TODO: Clean up.
+  int num = _sensors->getNumSettings();
+  for (int i = 0; i < num; i++) {
+    if (strcmp(_sensors->getSettingName(i), "gps") == 0) {
+      if (strcmp(_sensors->getSettingValue(i), "1") == 0) {
+        _sensors->setSettingValue("gps", "0");
+        _node_prefs->gps_enabled = 0;
+        notify(UIEventType::ack);
+      } else {
+        _sensors->setSettingValue("gps", "1");
+        _node_prefs->gps_enabled = 1;
+        notify(UIEventType::ack);
+      }
+      the_mesh.savePrefs();
+      //showAlert(_node_prefs->gps_enabled ? "GPS: Enabled" : "GPS: Disabled", 800);
+      //_next_refresh = 0;
+      break;
+    }
+  }
+}
+
+void UITask::toggleBuzzer() {
+  if (_buzzer.isQuiet()) {
+    _buzzer.quiet(false);
+    notify(UIEventType::ack);
+  } else {
+    _buzzer.quiet(true);
+  }
+  _node_prefs->buzzer_quiet = _buzzer.isQuiet();
+  the_mesh.savePrefs();
+  //showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
+  //_next_refresh = 0;
 }
 
 // #include <helpers/TxtDataHelpers.h>
@@ -179,35 +240,6 @@ void UITask::setCurrent(UIScreen* screen) {
 // void UITask::showAlert(const char* text, int duration_millis) {
 //   strcpy(_alert, text);
 //   _alert_expiry = millis() + duration_millis;
-// }
-
-// void UITask::notify(UIEventType t) {
-// #if defined(PIN_BUZZER)
-// switch(t){
-//   case UIEventType::contactMessage:
-//     // gemini's pick
-//     buzzer.play("MsgRcv3:d=4,o=6,b=200:32e,32g,32b,16c7");
-//     break;
-//   case UIEventType::channelMessage:
-//     buzzer.play("kerplop:d=16,o=6,b=120:32g#,32c#");
-//     break;
-//   case UIEventType::ack:
-//     buzzer.play("ack:d=32,o=8,b=120:c");
-//     break;
-//   case UIEventType::roomMessage:
-//   case UIEventType::newContactMessage:
-//   case UIEventType::none:
-//   default:
-//     break;
-// }
-// #endif
-
-// #ifdef PIN_VIBRATION
-//   // Trigger vibration for all UI events except none
-//   if (t != UIEventType::none) {
-//     vibration.trigger();
-//   }
-// #endif
 // }
 
 // void UITask::msgRead(int msgcount) {
@@ -499,44 +531,4 @@ void UITask::setCurrent(UIScreen* screen) {
 //     }
 //   }
 //   return false;
-// }
-
-// void UITask::toggleGPS() {
-//     if (_sensors != NULL) {
-//     // toggle GPS on/off
-//     int num = _sensors->getNumSettings();
-//     for (int i = 0; i < num; i++) {
-//       if (strcmp(_sensors->getSettingName(i), "gps") == 0) {
-//         if (strcmp(_sensors->getSettingValue(i), "1") == 0) {
-//           _sensors->setSettingValue("gps", "0");
-//           _node_prefs->gps_enabled = 0;
-//           notify(UIEventType::ack);
-//         } else {
-//           _sensors->setSettingValue("gps", "1");
-//           _node_prefs->gps_enabled = 1;
-//           notify(UIEventType::ack);
-//         }
-//         the_mesh.savePrefs();
-//         showAlert(_node_prefs->gps_enabled ? "GPS: Enabled" : "GPS: Disabled", 800);
-//         _next_refresh = 0;
-//         break;
-//       }
-//     }
-//   }
-// }
-
-// void UITask::toggleBuzzer() {
-//     // Toggle buzzer quiet mode
-//   #ifdef PIN_BUZZER
-//     if (buzzer.isQuiet()) {
-//       buzzer.quiet(false);
-//       notify(UIEventType::ack);
-//     } else {
-//       buzzer.quiet(true);
-//     }
-//     _node_prefs->buzzer_quiet = buzzer.isQuiet();
-//     the_mesh.savePrefs();
-//     showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
-//     _next_refresh = 0;  // trigger refresh
-//   #endif
 // }

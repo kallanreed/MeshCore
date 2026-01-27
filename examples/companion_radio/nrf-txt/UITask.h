@@ -71,7 +71,8 @@ public:
   void setCurrent(UIScreen* screen);
   void gotoHome() { setCurrent(_home); }
 
-
+  void toggleGPS();
+  void toggleBuzzer();
 
 
 
@@ -82,9 +83,6 @@ public:
   // bool hasDisplay() const { return _display != NULL; }
   // bool isButtonPressed() const;
 
-  // void toggleBuzzer();
+
   // bool getGPSState();
-  // void toggleGPS();
-
-
 };

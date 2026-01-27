@@ -47,7 +47,14 @@ HomeScreen::HomeScreen(UITask* task) {}
 
 int HomeScreen::render(DisplayDriver& display) {
   display.drawXbm(3, 3, icon_home, 8, 8);
-  display.drawTextCentered(3, 15, "Q to shutdown");
+  display.drawXbm(13, 3, icon_contact, 8, 8);
+  display.drawXbm(23, 3, icon_channel, 8, 8);
+  display.drawXbm(33, 3, icon_gps, 8, 8);
+  display.drawXbm(43, 3, icon_settings, 8, 8);
+  display.drawXbm(53, 3, icon_power, 8, 8);
+  display.drawTextLeftAlign(3, 15, "Q to shutdown");
+  display.drawTextLeftAlign(3, 27, "G to toggle GPS");
+  display.drawTextLeftAlign(3, 39, "B to toggle Buzzer");
 
   return 1000;
 }
