@@ -20,7 +20,7 @@
 // Power
 
 #define NRF_APM
-#define PIN_3V3_EN              (38)
+#define PIN_3V3_EN              (21)
 
 #define BATTERY_PIN             (4)
 #define ADC_MULTIPLIER          (4.90F)
@@ -123,7 +123,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // GPS
 
-#define GPS_EN                  (21)
+#define GPS_EN                  (34)
 #define GPS_RESET               (38)
 #define PIN_GPS_RX              (39)  // This is for bits going TOWARDS the GPS
 #define PIN_GPS_TX              (37)  // This is for bits going TOWARDS the CPU

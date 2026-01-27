@@ -11,8 +11,8 @@ WRAPPER_CLASS radio_driver(radio, board);
 
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-RefCountedDigitalPin vext_power(GPS_EN);
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, -1, &vext_power);
+RefCountedDigitalPin vext_power(PIN_3V3_EN);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, -1);
 T114SensorManager sensors = T114SensorManager(nmea);
 
 #ifdef DISPLAY_CLASS
@@ -65,8 +65,8 @@ bool T114SensorManager::begin() {
   // to determine setting should be exposed
   Serial1.begin(9600);
 
-  // Enable power for peripheral devices (e.g. GPS)
-  vext_power.claim();
+  pinMode(GPS_EN, OUTPUT);
+  digitalWrite(GPS_EN, HIGH);
 
   // Give GPS a moment to power up and send data
   delay(1500);
@@ -79,9 +79,8 @@ bool T114SensorManager::begin() {
   } else {
     MESH_DEBUG_PRINTLN("No GPS detected");
   }
-  
-  vext_power.release();
 
+  digitalWrite(GPS_EN, LOW);
   return true;
 }
 

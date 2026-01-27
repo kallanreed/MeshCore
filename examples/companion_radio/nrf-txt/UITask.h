@@ -1,116 +1,90 @@
 #pragma once
 
+#include <Arduino.h>
 #include <MeshCore.h>
+#include <cstdint>
+#include <helpers/BaseSerialInterface.h>
+#include <helpers/RefCountedDigitalPin.h>
+#include <helpers/SensorManager.h>
+#include <helpers/sensors/LPPDataHelpers.h>
+#include <helpers/ui/buzzer.h>
 #include <helpers/ui/DisplayDriver.h>
 #include <helpers/ui/UIScreen.h>
-#include <helpers/SensorManager.h>
-#include <helpers/BaseSerialInterface.h>
-#include <Arduino.h>
-#include <helpers/sensors/LPPDataHelpers.h>
-#include <helpers/RefCountedDigitalPin.h>
-#include "hardware.h"
-
-#ifndef LED_STATE_ON
-  #define LED_STATE_ON 1
-#endif
-
-#ifdef PIN_BUZZER
-  #include <helpers/ui/buzzer.h>
-#endif
-#ifdef PIN_VIBRATION
-  #include <helpers/ui/GenericVibration.h>
-#endif
-
-#if UI_HAS_JOYSTICK
-  #define PRESS_LABEL "press Enter"
-#else
-  #define PRESS_LABEL "long press"
-#endif
-
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
+#include "hardware.h"
 
 // Used to control whether Vext is powered.
 extern RefCountedDigitalPin vext_power;
 
 class UITask : public AbstractUITask {
-  DisplayDriver* _display;
-  SensorManager* _sensors;
-#ifdef PIN_BUZZER
-  genericBuzzer buzzer;
-#endif
-#ifdef PIN_VIBRATION
-  GenericVibration vibration;
-#endif
-  CardKB _keyboard;
-  unsigned long _next_refresh, _auto_off;
-  NodePrefs* _node_prefs;
-  char _alert[80];
-  unsigned long _alert_expiry;
-  int _msgcount;
-  unsigned long ui_started_at, next_batt_chck;
-  int next_backlight_btn_check = 0;
-#ifdef PIN_STATUS_LED
-  int led_state = 0;
-  int next_led_change = 0;
-  int last_led_increment = 0;
-#endif
+  DisplayDriver* _display = nullptr;
+  SensorManager* _sensors = nullptr;
+  NodePrefs* _node_prefs = nullptr;
+  genericBuzzer _buzzer;
+  CardKB _keyboard = CardKB(&vext_power);
 
-#ifdef PIN_USER_BTN_ANA
-  unsigned long _analogue_pin_read_millis = millis();
-#endif
+  uint32_t _ui_started_at = 0;
+  uint32_t _next_render = 0;
+  uint32_t _next_batt_chck = 0;
+  uint32_t _auto_off = 0;
+  uint32_t _alert_expiry = 0;
+  uint32_t _next_backlight_btn_check = 0;
 
-  UIScreen* splash;
-  UIScreen* home;
-  UIScreen* msg_preview;
-#if UI_QUICK_MSG
-  UIScreen* quick_msg;
-#endif
-  UIScreen* curr;
+  uint8_t _alert[80] = {};
+  uint32_t _msgcount = 0;
+
+  UIScreen* _splash;
+  UIScreen* _home;
+  UIScreen* _msg_preview;
+  UIScreen* _quick_msg;
+  UIScreen* _curr;
 
   void userLedHandler();
-
-  // Button action handlers
   bool checkDisplayOn();
-  void handleLongPress(char c);
-  void handleSingleClick(char c);
-  void handleDoubleClick(char c);
-  void handleTripleClick(char c);
-  bool uiHandleKey(char c);
-
-  void setCurrScreen(UIScreen* c);
 
 public:
-
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
     : AbstractUITask(board, serial)
-    , _display(NULL)
-    , _sensors(NULL)
-    , _keyboard(&vext_power) {
-    next_batt_chck = _next_refresh = 0;
-    ui_started_at = 0;
-    curr = NULL;
-  }
-  void begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs);
+  { }
 
-  void gotoHomeScreen() { setCurrScreen(home); }
-#if UI_QUICK_MSG
-  void gotoQuickMsgScreen() { setCurrScreen(quick_msg); }
-#endif
-  void showAlert(const char* text, int duration_millis);
-  int  getMsgCount() const { return _msgcount; }
-  bool hasDisplay() const { return _display != NULL; }
-  bool isButtonPressed() const;
+  void begin(
+    DisplayDriver* display,
+    SensorManager* sensors,
+    NodePrefs* node_prefs);
+  void shutdown(bool restart = false);
+  void dispatchRender();
+  void renderAfter(uint32_t delay_ms);
 
-  void toggleBuzzer();
-  bool getGPSState();
-  void toggleGPS();
-
-  // from AbstractUITask
+  // AbstractUITask impl
   void msgRead(int msgcount) override;
-  void newMsg(uint8_t path_len, const char* from_name, const char* text, int msgcount) override;
+  void newMsg(
+    uint8_t path_len,
+    const char* from_name,
+    const char* text,
+    int msgcount) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
 
-  void shutdown(bool restart = false);
+
+  // Screen navgation
+  void setCurrent(UIScreen* screen);
+  void gotoHome() { setCurrent(_home); }
+
+
+
+
+
+  // void showAlert(const char* text, int duration_millis);
+  // void gotoHomeScreen() { setCurrScreen(home); }
+  // void gotoQuickMsgScreen() { setCurrScreen(quick_msg); }
+  // int  getMsgCount() const { return _msgcount; }
+  // bool hasDisplay() const { return _display != NULL; }
+  // bool isButtonPressed() const;
+
+  // void toggleBuzzer();
+  // bool getGPSState();
+  // void toggleGPS();
+
+
 };

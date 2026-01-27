@@ -38,8 +38,7 @@ public:
       return kb;
 
     if(Wire.requestFrom(CARDKB_ADDR, 1)) {
-      // TODO: This should read into a buffer.
-      while (Wire.available())
+      if (Wire.available())
         kb = Wire.read();
     }
 

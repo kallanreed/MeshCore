@@ -33,13 +33,13 @@ void T114Board::initiateShutdown(uint8_t reason) {
 #endif // NRF52_POWER_MANAGEMENT
 
 void T114Board::disablePeripheralPower() {
-  pinMode(GPS_EN, OUTPUT);
-  digitalWrite(GPS_EN, LOW);
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, LOW);
 }
 
 void T114Board::enablePeripheralPower() {
-  pinMode(GPS_EN, OUTPUT);
-  digitalWrite(GPS_EN, HIGH);
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, HIGH);
 }
 
 void T114Board::powerOff() {
