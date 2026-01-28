@@ -45,7 +45,7 @@ class MicroNMEALocationProvider : public LocationProvider {
     long time_valid = 0;
 
 public :
-    MicroNMEALocationProvider(Stream& ser, mesh::RTCClock* clock = NULL, int pin_reset = GPS_RESET, int pin_en = GPS_EN,RefCountedDigitalPin* peripher_power=NULL) :
+    MicroNMEALocationProvider(Stream& ser, mesh::RTCClock* clock = NULL, int pin_reset = GPS_RESET, int pin_en = GPS_EN, RefCountedDigitalPin* peripher_power = NULL) :
     _gps_serial(&ser), nmea(_nmeaBuffer, sizeof(_nmeaBuffer)), _pin_reset(pin_reset), _pin_en(pin_en), _clock(clock), _peripher_power(peripher_power) {
         if (_pin_reset != -1) {
             pinMode(_pin_reset, OUTPUT);
@@ -133,7 +133,7 @@ public :
                 }
             }
             if (isValid()) {
-                time_valid ++;
+                time_valid++;
             }
         }
     }

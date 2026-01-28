@@ -124,14 +124,17 @@ void UITask::toggleGPS() {
   int num = _sensors->getNumSettings();
   for (int i = 0; i < num; i++) {
     if (strcmp(_sensors->getSettingName(i), "gps") == 0) {
+      MESH_DEBUG_PRINT("UITask::toggleGPS> ");
       if (strcmp(_sensors->getSettingValue(i), "1") == 0) {
         _sensors->setSettingValue("gps", "0");
         _node_prefs->gps_enabled = 0;
         notify(UIEventType::ack);
+        MESH_DEBUG_PRINTLN("Disabled GPS");
       } else {
         _sensors->setSettingValue("gps", "1");
         _node_prefs->gps_enabled = 1;
         notify(UIEventType::ack);
+        MESH_DEBUG_PRINTLN("Enabled GPS");
       }
       the_mesh.savePrefs();
       //showAlert(_node_prefs->gps_enabled ? "GPS: Enabled" : "GPS: Disabled", 800);

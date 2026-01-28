@@ -46,15 +46,21 @@ void SplashScreen::poll() {
 HomeScreen::HomeScreen(UITask* task) {}
 
 int HomeScreen::render(DisplayDriver& display) {
-  display.drawXbm(3, 3, icon_home, 8, 8);
-  display.drawXbm(13, 3, icon_contact, 8, 8);
-  display.drawXbm(23, 3, icon_channel, 8, 8);
-  display.drawXbm(33, 3, icon_gps, 8, 8);
-  display.drawXbm(43, 3, icon_settings, 8, 8);
-  display.drawXbm(53, 3, icon_power, 8, 8);
-  display.drawTextLeftAlign(3, 15, "Q to shutdown");
-  display.drawTextLeftAlign(3, 27, "G to toggle GPS");
-  display.drawTextLeftAlign(3, 39, "B to toggle Buzzer");
+  display.drawXbm(2 + 0, 3, icon_home, 8, 8, 2);
+  display.drawXbm(2 + 20, 3, icon_msg, 8, 8, 2);
+  display.drawXbm(2 + 40, 3, icon_contact, 8, 8, 2);
+  display.drawXbm(2 + 60, 3, icon_channel, 8, 8, 2);
+  display.drawXbm(2 + 80, 3, icon_gps, 8, 8, 2);
+  display.drawXbm(2 + 100, 3, icon_settings, 8, 8, 2);
+  display.drawXbm(2 + 120, 3, icon_clock, 8, 8, 2);
+  display.drawXbm(2 + 140, 3, icon_power, 8, 8, 2);
+  display.drawTextLeftAlign(3, 20, "Q to shutdown");
+  display.drawTextLeftAlign(3, 36, "G to toggle GPS");
+  display.drawTextLeftAlign(3, 52, "B to toggle Buzzer");
+
+  char tmp[32];
+  sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
+  display.drawTextLeftAlign(3, 68, tmp);
 
   return 1000;
 }

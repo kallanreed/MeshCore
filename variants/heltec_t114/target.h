@@ -13,7 +13,11 @@
 #ifdef DISPLAY_CLASS
 #include <helpers/ui/MomentaryButton.h>
 #ifdef HELTEC_T114_WITH_DISPLAY
+#ifdef USE_NRF_DISPLAY
+#include <nrf_hardware.h>
+#else
 #include <helpers/ui/ST7789Display.h>
+#endif
 #else
 #include "helpers/ui/NullDisplayDriver.h"
 #endif

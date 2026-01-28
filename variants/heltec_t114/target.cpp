@@ -12,7 +12,7 @@ WRAPPER_CLASS radio_driver(radio, board);
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
 RefCountedDigitalPin vext_power(PIN_3V3_EN);
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, -1);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
 T114SensorManager sensors = T114SensorManager(nmea);
 
 #ifdef DISPLAY_CLASS

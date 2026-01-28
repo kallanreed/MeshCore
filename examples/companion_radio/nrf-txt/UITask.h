@@ -12,7 +12,7 @@
 #include <helpers/ui/UIScreen.h>
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
-#include "hardware.h"
+#include "nrf_hardware.h"
 
 // Used to control whether Vext is powered.
 extern RefCountedDigitalPin vext_power;
@@ -65,7 +65,6 @@ public:
     int msgcount) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
-
 
   // Screen navgation
   void setCurrent(UIScreen* screen);
