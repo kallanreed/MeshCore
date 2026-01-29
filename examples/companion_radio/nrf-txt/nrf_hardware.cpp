@@ -1,7 +1,9 @@
 #include "nrf_hardware.h"
 
 static constexpr int kXOffset = 0;
-static constexpr int kYOffset = 1;
+static constexpr int kYOffset = 0;
+
+static constexpr uint16_t LightColor = ST77XX_ORANGE;
 
 bool ST7789DisplayNrfTxt::begin() {
   if(!_isOn) {
@@ -60,7 +62,7 @@ void ST7789DisplayNrfTxt::clear() {
 
 void ST7789DisplayNrfTxt::startFrame(Color bkg) {
   display.clear();
-  _color = ST77XX_WHITE;
+  _color = LightColor;
   display.setRGB(_color);
   display.setFont(ArialMT_Plain_16);
 }
@@ -80,15 +82,19 @@ void ST7789DisplayNrfTxt::setTextSize(int sz) {
 
 void ST7789DisplayNrfTxt::setColor(Color c) {
   switch (c) {
-    case DisplayDriver::DARK :
+    case DisplayDriver::DARK:
       _color = ST77XX_BLACK;
       display.setColor(OLEDDISPLAY_COLOR::BLACK);
       break;
+    case DisplayDriver::INVERSE:
+      display.setColor(OLEDDISPLAY_COLOR::INVERSE);
+      break;
     default:
-      _color = ST77XX_WHITE;
+      _color = LightColor;
       display.setColor(OLEDDISPLAY_COLOR::WHITE);
       break;
   }
+
   display.setRGB(_color);
 }
 

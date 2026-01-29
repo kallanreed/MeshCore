@@ -1,10 +1,9 @@
 #include "screens.h"
-
+#include "ui_task.h"
 #include "../MyMesh.h"
-#include "icons.h"
 
 // --- SplashScreen ---
-SplashScreen::SplashScreen(UITask* task) : _task(task) {
+SplashScreen::SplashScreen(UIViewModel* model) : _model(model) {
   // strip off dash and commit hash by changing dash to null terminator
   // e.g: v1.2.3-abcdef -> v1.2.3
   const char *ver = FIRMWARE_VERSION;
@@ -20,49 +19,83 @@ SplashScreen::SplashScreen(UITask* task) : _task(task) {
 
 int SplashScreen::render(DisplayDriver& display) {
   // Meshcore logo
-  display.setColor(DisplayDriver::BLUE);
   int logo_width = 128;
   int logo_height = 13;
   int mid_x = (display.width() - logo_width) / 2;
-  display.drawXbm(mid_x, 3, meshcore_logo, logo_width, logo_height);
+  display.drawXbm(mid_x, 35, meshcore_logo, logo_width, logo_height);
 
   // Version info
   display.setColor(DisplayDriver::LIGHT);
   display.setTextSize(2);
-  display.drawTextCentered(display.width() / 2, 22, _version_info);
+  display.drawTextCentered(display.width() / 2, 60, _version_info);
 
   display.setTextSize(1);
-  display.drawTextCentered(display.width() / 2, 42, FIRMWARE_BUILD_DATE);
+  display.drawTextCentered(display.width() / 2, 96, FIRMWARE_BUILD_DATE);
 
   return 1000;
 }
 
 void SplashScreen::poll() {
   if (millis() >= dismiss_after)
-    _task->gotoHome();
+    _model->gotoHome();
 }
 
+// --- Page Instances ---
+extern UITask ui_task;
+static UIViewModel* view_model = &ui_task;
+static HomePage homePage = HomePage(view_model);
+static PowerPage powerPage = PowerPage(view_model);
+
 // --- HomeScreen ---
-HomeScreen::HomeScreen(UITask* task) {}
+HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
+  _pages[0] = &homePage;
+  _pages[1] = &homePage;
+  _pages[2] = &homePage;
+  _pages[3] = &homePage;
+  _pages[4] = &homePage;
+  _pages[5] = &homePage;
+  _pages[6] = &homePage;
+  _pages[7] = &powerPage;
+}
 
 int HomeScreen::render(DisplayDriver& display) {
-  display.drawXbm(2 + 0, 3, icon_home, 8, 8, 2);
-  display.drawXbm(2 + 20, 3, icon_msg, 8, 8, 2);
-  display.drawXbm(2 + 40, 3, icon_contact, 8, 8, 2);
-  display.drawXbm(2 + 60, 3, icon_channel, 8, 8, 2);
-  display.drawXbm(2 + 80, 3, icon_gps, 8, 8, 2);
-  display.drawXbm(2 + 100, 3, icon_settings, 8, 8, 2);
-  display.drawXbm(2 + 120, 3, icon_clock, 8, 8, 2);
-  display.drawXbm(2 + 140, 3, icon_power, 8, 8, 2);
-  display.drawTextLeftAlign(3, 20, "Q to shutdown");
-  display.drawTextLeftAlign(3, 36, "G to toggle GPS");
-  display.drawTextLeftAlign(3, 52, "B to toggle Buzzer");
+  display.setColor(DisplayDriver::LIGHT);
+  auto current = _pages[_page];
+  current->renderPreview(display);
 
-  char tmp[32];
-  sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
-  display.drawTextLeftAlign(3, 68, tmp);
+  // Draw page selector
+  for (auto i = 0u; i < _pages.size(); i++) {
+    auto page = _pages[i];
+    display.drawXbm(2 + (i * 20), 118, page->getIcon(), 8, 8, 2);
+  }
+
+  // Highlight selected.
+  display.setColor(DisplayDriver::INVERSE);
+  display.fillRect(1 + (20 * _page), 117, 18, 18); 
 
   return 1000;
+}
+
+bool HomeScreen::handleInput(char c) {
+  bool handled = false;
+
+  // TODO: allow page first dibs?
+
+  if (c == KEY_LEFT) {
+    _page = (_pages.size() + _page - 1) % _pages.size();
+    handled = true;
+  } else if (c == KEY_RIGHT) {
+    _page = (_page + 1) % _pages.size();
+    handled = true;
+  } else if (c == KEY_ENTER) {
+    current()->activate();
+    handled = true;
+  }
+
+  if (handled)
+    _model->renderAfter(0);
+
+  return handled;
 }
 
 void HomeScreen::poll() {

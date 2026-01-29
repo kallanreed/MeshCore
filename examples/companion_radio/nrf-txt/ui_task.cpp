@@ -1,51 +1,12 @@
-#include "UITask.h"
+#include "ui_task.h"
 
 #include "../MyMesh.h"
 #include "screens.h"
 #include "target.h"
 
-void UITask::begin(
-  DisplayDriver* display,
-  SensorManager* sensors,
-  NodePrefs* node_prefs)
-{
-  _display = display;
-  _sensors = sensors;
-  _node_prefs = node_prefs;
+constexpr uint32_t auto_off_ms = 10 * 1000;
 
-  _keyboard.begin();
-  _buzzer.begin();
-  _buzzer.quiet(_node_prefs->buzzer_quiet);
-
-  if (_display)
-    _display->turnOn();
-
-  _ui_started_at = millis();
-  _alert_expiry = 0;
-
-  _splash = new SplashScreen(this);
-  _home = new HomeScreen(this);
-  setCurrent(_splash);
-}
-
-void UITask::shutdown(bool restart) {
-  _keyboard.end();
-  _buzzer.shutdown();
-
-  // Give the buzzer some time to play.
-  uint32_t buzzer_timer = millis();
-  while (_buzzer.isPlaying() && (millis() - 2500) < buzzer_timer)
-    _buzzer.loop();
-
-  if (restart) {
-    _board->reboot();
-  } else {
-    radio_driver.powerOff();
-    _display->turnOff();
-    _board->powerOff();
-  }
-}
-
+// --- Private functions ---
 void UITask::dispatchRender() {
   if (!_display || !_display->isOn())
     return;
@@ -60,11 +21,53 @@ void UITask::dispatchRender() {
   _display->endFrame();
 }
 
-void UITask::renderAfter(uint32_t delay_ms) {
-  _next_render = millis() + delay_ms;
+void UITask::setCurrent(UIScreen* screen) {
+  _curr = screen;
+  renderAfter(0);
 }
 
+ bool UITask::wakeScreen() {
+  bool previously_on = true;
+  if (!_display->isOn()) {
+    previously_on = false;
+    _display->turnOn();
+  }
+  renderAfter(0); // Refresh screen.
+  _auto_off = millis() + auto_off_ms;
+  return previously_on;
+ }
+
+void UITask::checkAutoOff() {
+  if (_display->isOn() && _auto_off < millis())
+    _display->turnOff();
+}
+
+// Public functions ---
+void UITask::begin(
+  DisplayDriver* display,
+  SensorManager* sensors,
+  NodePrefs* node_prefs)
+{
+  _display = display;
+  _sensors = sensors;
+  _node_prefs = node_prefs;
+
+  _keyboard.begin();
+  _buzzer.begin();
+  _buzzer.quiet(_node_prefs->buzzer_quiet);
+
+  wakeScreen();
+  _ui_started_at = millis();
+  _alert_expiry = 0;
+
+  _splash = new SplashScreen(this);
+  _home = new HomeScreen(this);
+  setCurrent(_splash);
+}
+
+// --- AbstractUITask ---
 void UITask::msgRead(int msgcount) {}
+
 void UITask::newMsg(
   uint8_t path_len,
   const char* from_name,
@@ -92,14 +95,16 @@ void UITask::notify(UIEventType t) {
 
 void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
-  if (kb) {
+  if (kb && wakeScreen()) {
     MESH_DEBUG_PRINTLN("%02x", kb);
-    if (kb == 'Q')
-      shutdown();
-    else if (kb == 'G')
-      toggleGPS();
-    else if (kb == 'B')
-      toggleBuzzer();
+    if (!_curr->handleInput(kb)) {
+      if (kb == 'Q')
+        shutdown();
+      else if (kb == 'G')
+        toggleGPS();
+      else if (kb == 'B')
+        toggleBuzzer();
+    }
   }
 
   if (_buzzer.isPlaying())
@@ -109,11 +114,52 @@ void UITask::loop() {
     _curr->poll();
 
   dispatchRender();
+  checkAutoOff();
 }
 
-void UITask::setCurrent(UIScreen* screen) {
-  _curr = screen;
-  renderAfter(0);
+// --- UIViewModel ---
+uint32_t UITask::getBlePin() {
+  return the_mesh.getBLEPin();
+}
+
+uint32_t UITask::getUptimeMin() {
+  auto uptime_millis = millis() - _ui_started_at;
+  return uptime_millis / 1000 / 60;
+}
+
+void UITask::renderAfter(uint32_t delay_ms) {
+  _next_render = millis() + delay_ms;
+}
+
+void UITask::shutdown(bool restart) {
+  _keyboard.end();
+  _buzzer.shutdown();
+
+  // Give the buzzer some time to play.
+  uint32_t buzzer_timer = millis();
+  while (_buzzer.isPlaying() && (millis() - 2500) < buzzer_timer)
+    _buzzer.loop();
+
+  if (restart) {
+    _board->reboot();
+  } else {
+    radio_driver.powerOff();
+    _display->turnOff();
+    _board->powerOff();
+  }
+}
+
+void UITask::toggleBuzzer() {
+  if (_buzzer.isQuiet()) {
+    _buzzer.quiet(false);
+    notify(UIEventType::ack);
+  } else {
+    _buzzer.quiet(true);
+  }
+  _node_prefs->buzzer_quiet = _buzzer.isQuiet();
+  the_mesh.savePrefs();
+  //showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
+  //_next_refresh = 0;
 }
 
 void UITask::toggleGPS() {
@@ -142,19 +188,6 @@ void UITask::toggleGPS() {
       break;
     }
   }
-}
-
-void UITask::toggleBuzzer() {
-  if (_buzzer.isQuiet()) {
-    _buzzer.quiet(false);
-    notify(UIEventType::ack);
-  } else {
-    _buzzer.quiet(true);
-  }
-  _node_prefs->buzzer_quiet = _buzzer.isQuiet();
-  the_mesh.savePrefs();
-  //showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
-  //_next_refresh = 0;
 }
 
 // #include <helpers/TxtDataHelpers.h>

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <helpers/ui/UIScreen.h>
-#include "UITask.h"
+#include "controls.h"
+#include "ui_view_model.h"
 
 /*
   UIScreen API
@@ -12,20 +14,27 @@
 
 class SplashScreen : public UIScreen
 {
-  UITask* _task;
-  unsigned long dismiss_after;
+  UIViewModel* _model;
+  uint32_t dismiss_after;
   char _version_info[12];
 
 public:
-  SplashScreen(UITask* task);
+  SplashScreen(UIViewModel* _model);
   int render(DisplayDriver& display) override;
   void poll() override;
 };
 
 class HomeScreen : public UIScreen
 {
+  UIViewModel* _model;
+  uint8_t _page = 0;
+  std::array<UIPage*, 8> _pages;
+
+  UIPage* current() { return _pages[_page]; }
+
 public:
-  HomeScreen(UITask* task);
+  HomeScreen(UIViewModel* model);
   int render(DisplayDriver& display) override;
+  bool handleInput(char c) override;
   void poll() override;
 };

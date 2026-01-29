@@ -9,6 +9,12 @@
 
 #define CARDKB_ADDR 0x5F
 
+enum class KeyCode {
+  FN_B = 0xaa,
+  FN_G = 0x9e,
+  FN_Q = 0x8d
+};
+
 class CardKB {
   RefCountedDigitalPin* _vext_power;
   bool _begun = false;
