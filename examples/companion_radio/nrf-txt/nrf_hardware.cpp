@@ -6,21 +6,21 @@ static constexpr int kYOffset = 0;
 static constexpr uint16_t LightColor = ST77XX_ORANGE;
 
 bool ST7789DisplayNrfTxt::begin() {
-  if(!_isOn) {
+  if (!_isOn) {
     pinMode(PIN_TFT_VDD_CTL, OUTPUT);
     pinMode(PIN_TFT_LEDA_CTL, OUTPUT);
     digitalWrite(PIN_TFT_VDD_CTL, LOW);
-  #ifdef PIN_TFT_LEDA_CTL_ACTIVE
+#ifdef PIN_TFT_LEDA_CTL_ACTIVE
     digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
-  #else
+#else
     digitalWrite(PIN_TFT_LEDA_CTL, LOW);
-  #endif
+#endif
     digitalWrite(PIN_TFT_RST, HIGH);
 
     display.init();
     display.landscapeScreen();
     display.displayOn();
-    setCursor(0,0);
+    setCursor(0, 0);
 
     _isOn = true;
   }
@@ -36,11 +36,11 @@ void ST7789DisplayNrfTxt::turnOn() {
     display.displayOn();
     delay(20);
 
-  #ifdef PIN_TFT_LEDA_CTL_ACTIVE
+#ifdef PIN_TFT_LEDA_CTL_ACTIVE
     digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
-  #else
+#else
     digitalWrite(PIN_TFT_LEDA_CTL, LOW);
-  #endif
+#endif
     _isOn = true;
   }
 }
@@ -64,35 +64,35 @@ void ST7789DisplayNrfTxt::startFrame(Color bkg) {
   display.clear();
   _color = LightColor;
   display.setRGB(_color);
-  display.setFont(ArialMT_Plain_16);
+  setTextSize(2);
 }
 
 void ST7789DisplayNrfTxt::setTextSize(int sz) {
-  switch(sz) {
-    case 1 :
-      display.setFont(ArialMT_Plain_16);
-      break;
-    case 2 :
-      display.setFont(ArialMT_Plain_24);
-      break;
-    default:
-      display.setFont(ArialMT_Plain_16);
+  switch (sz) {
+  case 1:
+    display.setFont(ArialMT_Plain_10);
+    break;
+  case 3:
+    display.setFont(ArialMT_Plain_24);
+    break;
+  default:
+    display.setFont(ArialMT_Plain_16);
   }
 }
 
 void ST7789DisplayNrfTxt::setColor(Color c) {
   switch (c) {
-    case DisplayDriver::DARK:
-      _color = ST77XX_BLACK;
-      display.setColor(OLEDDISPLAY_COLOR::BLACK);
-      break;
-    case DisplayDriver::INVERSE:
-      display.setColor(OLEDDISPLAY_COLOR::INVERSE);
-      break;
-    default:
-      _color = LightColor;
-      display.setColor(OLEDDISPLAY_COLOR::WHITE);
-      break;
+  case DisplayDriver::DARK:
+    _color = ST77XX_BLACK;
+    display.setColor(OLEDDISPLAY_COLOR::BLACK);
+    break;
+  case DisplayDriver::INVERSE:
+    display.setColor(OLEDDISPLAY_COLOR::INVERSE);
+    break;
+  default:
+    _color = LightColor;
+    display.setColor(OLEDDISPLAY_COLOR::WHITE);
+    break;
   }
 
   display.setRGB(_color);
@@ -103,11 +103,11 @@ void ST7789DisplayNrfTxt::setCursor(int x, int y) {
   _y = y + kYOffset;
 }
 
-void ST7789DisplayNrfTxt::print(const char* str) {
+void ST7789DisplayNrfTxt::print(const char *str) {
   display.drawString(_x, _y, str);
 }
 
-void ST7789DisplayNrfTxt::printWordWrap(const char* str, int max_width) {
+void ST7789DisplayNrfTxt::printWordWrap(const char *str, int max_width) {
   display.drawStringMaxWidth(_x, _y, max_width, str);
 }
 
@@ -119,11 +119,11 @@ void ST7789DisplayNrfTxt::drawRect(int x, int y, int w, int h) {
   display.drawRect(x + kXOffset, y + kYOffset, w, h);
 }
 
-void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t* bits, int w, int h) {
+void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t *bits, int w, int h) {
   drawXbm(x, y, bits, w, h, 1);
 }
 
-void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t* bits, int w, int h, int scale) {
+void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t *bits, int w, int h, int scale) {
   if (scale < 1) {
     return;
   }
@@ -147,7 +147,7 @@ void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t* bits, int w, int 
   }
 }
 
-uint16_t ST7789DisplayNrfTxt::getTextWidth(const char* str) {
+uint16_t ST7789DisplayNrfTxt::getTextWidth(const char *str) {
   return display.getStringWidth(str);
 }
 

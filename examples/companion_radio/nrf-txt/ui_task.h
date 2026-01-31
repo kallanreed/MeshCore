@@ -37,11 +37,7 @@ class UITask : public AbstractUITask, public UIViewModel {
 
   UIScreen* _splash;
   UIScreen* _home;
-  UIScreen* _msg_preview;
-  UIScreen* _quick_msg;
   UIScreen* _curr;
-
-  void userLedHandler();
 
   void dispatchRender();
   void setCurrent(UIScreen* screen);
@@ -76,13 +72,6 @@ public:
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
   void toggleGPS() override;
-  
-  // void showAlert(const char* text, int duration_millis);
-  // void gotoHomeScreen() { setCurrScreen(home); }
-  // void gotoQuickMsgScreen() { setCurrScreen(quick_msg); }
-  // int  getMsgCount() const { return _msgcount; }
-  // bool hasDisplay() const { return _display != NULL; }
-  // bool isButtonPressed() const;
-
-  // bool getGPSState();
+  Position getPosition() override;
+  DateTime2 getDateTime() override;
 };

@@ -4,7 +4,7 @@
 #include "screens.h"
 #include "target.h"
 
-constexpr uint32_t auto_off_ms = 10 * 1000;
+constexpr uint32_t auto_off_ms = 15 * 1000;
 
 // --- Private functions ---
 void UITask::dispatchRender() {
@@ -188,6 +188,61 @@ void UITask::toggleGPS() {
       break;
     }
   }
+}
+
+Position UITask::getPosition() {
+  Position p{};
+  LocationProvider* nmea = sensors.getLocationProvider();
+
+  if (nmea) {
+    p.has_fix = nmea->isValid();
+    p.latitude = nmea->getLatitude() / 1000000.0;
+    p.longitude = nmea->getLongitude() / 1000000.0;
+    p.elevation = nmea->getAltitude() / 1000.0; // m
+    p.satellites = nmea->satellitesCount();
+    p.enabled = nmea->isEnabled();
+  }
+
+  return p;
+}
+
+DateTime2 UITask::getDateTime() {
+  DateTime2 out{};
+  auto* _rtc = the_mesh.getRTCClock();
+  if (!_rtc) {
+    return out;
+  }
+
+  uint32_t epoch = _rtc->getCurrentTime();
+  uint32_t seconds = epoch;
+  out.second = seconds % 60;
+  seconds /= 60;
+  out.minute = seconds % 60;
+  seconds /= 60;
+  out.hour = seconds % 24;
+  uint32_t days = seconds / 24;
+
+  // Magic AI code.
+  int64_t z = static_cast<int64_t>(days) + 719468;
+  int64_t era = (z >= 0 ? z : z - 146096) / 146097;
+  uint32_t doe = static_cast<uint32_t>(z - era * 146097); // [0, 146096]
+  uint32_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+  int32_t year = static_cast<int32_t>(yoe) + static_cast<int32_t>(era) * 400;
+  uint32_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+  uint32_t mp = (5 * doy + 2) / 153;
+  uint32_t day = doy - (153 * mp + 2) / 5 + 1;
+  uint32_t month = mp + (mp < 10 ? 3 : -9);
+  year += (month <= 2);
+
+  int32_t year_offset = year - 2000;
+  if (year_offset < 0) {
+    year_offset = 0;
+  }
+
+  out.year = static_cast<uint8_t>(year_offset);
+  out.month = static_cast<uint8_t>(month);
+  out.day = static_cast<uint8_t>(day);
+  return out;
 }
 
 // #include <helpers/TxtDataHelpers.h>

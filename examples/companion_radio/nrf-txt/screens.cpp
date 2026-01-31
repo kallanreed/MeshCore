@@ -44,6 +44,8 @@ void SplashScreen::poll() {
 extern UITask ui_task;
 static UIViewModel* view_model = &ui_task;
 static HomePage homePage = HomePage(view_model);
+static GpsPage gpsPage = GpsPage(view_model);
+static ClockPage clockPage = ClockPage(view_model);
 static PowerPage powerPage = PowerPage(view_model);
 
 // --- HomeScreen ---
@@ -53,8 +55,8 @@ HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[2] = &homePage;
   _pages[3] = &homePage;
   _pages[4] = &homePage;
-  _pages[5] = &homePage;
-  _pages[6] = &homePage;
+  _pages[5] = &gpsPage;
+  _pages[6] = &clockPage;
   _pages[7] = &powerPage;
 }
 
