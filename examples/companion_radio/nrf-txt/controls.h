@@ -49,25 +49,25 @@ public:
     auto bits = getBits();
 
     if (bits & 0x40) // TL
-      display.fillRect(_x, _y + 3, 3, 24);
+      display.fillRect(_x, _y + 3, 3, 19);
 
     if (bits & 0x20) // TC
-      display.fillRect(_x + 3, _y, 24, 3);
+      display.fillRect(_x + 3, _y, 19, 3);
 
     if (bits & 0x10) // TR
-      display.fillRect(_x + 27, _y + 3, 3, 24);
+      display.fillRect(_x + 22, _y + 3, 3, 19);
 
     if (bits & 0x8) // CC
-      display.fillRect(_x + 3, _y + 27, 24, 3);
+      display.fillRect(_x + 3, _y + 22, 19, 3);
 
     if (bits & 0x4) // BL
-      display.fillRect(_x, _y + 30, 3, 24);
+      display.fillRect(_x, _y + 25, 3, 19);
 
     if (bits & 0x2) // BC
-      display.fillRect(_x + 3, _y + 54, 24, 3);
+      display.fillRect(_x + 3, _y + 44, 19, 3);
 
     if (bits & 0x1) // BR
-      display.fillRect(_x + 27, _y + 30, 3, 24);
+      display.fillRect(_x + 22, _y + 25, 3, 19);
   }
 };
 
@@ -157,11 +157,11 @@ class ClockPage : public UIPage {
 private:
   _7Seg _segs[6] {
     _7Seg(10, 40),
-    _7Seg(50, 40),
-    _7Seg(70, 40),
-    _7Seg(110, 40),
-    _7Seg(160, 40),
-    _7Seg(200, 40)
+    _7Seg(45, 40),
+    _7Seg(90, 40),
+    _7Seg(125, 40),
+    _7Seg(170, 40),
+    _7Seg(205, 40)
   };
 
 public:
@@ -176,9 +176,6 @@ public:
     auto dt = _model->getDateTime();
     auto center_x = display.width() / 2;
 
-    sprintf(tmp, "%d/%d/%d", dt.month, dt.day, dt.year);
-    display.drawTextCentered(center_x, 0, tmp);
-
     _segs[0].set(dt.hour / 10);
     _segs[1].set(dt.hour % 10);
     _segs[2].set(dt.minute / 10);
@@ -188,6 +185,19 @@ public:
 
     for (auto seg : _segs)
       seg.render(display);
+
+    if (dt.second % 2) {
+      display.fillRect(79, 50, 3, 3);
+      display.fillRect(79, 75, 3, 3);
+      display.fillRect(159, 50, 3, 3);
+      display.fillRect(159, 75, 3, 3);
+    }
+
+    sprintf(tmp, "%d/%d/%d", dt.month, dt.day, dt.year);
+    display.drawTextCentered(center_x, 1, tmp);
+    // display.setColor(DisplayDriver::INVERSE);
+    // display.fillRect(0, 0, 240, 18);
+    // display.setColor(DisplayDriver::LIGHT);
   }
 };
 
