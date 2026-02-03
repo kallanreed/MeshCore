@@ -32,19 +32,27 @@ struct RadioDetails {
   uint32_t packets_received;
 };
 
+using PromptCallback = void (*)(void* context, int result);
+
 // Abstracts the hardware APIs from the UI.
 class UIViewModel {
 public:
   virtual uint32_t getMsgCount() = 0;
   virtual bool isConnected() = 0;
   virtual bool isBuzzerEnabled() = 0;
+  virtual void prompt(
+    const char* title,
+    const char* const* items,
+    uint8_t count,
+    PromptCallback callback,
+    void* context) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
   virtual void gotoHome() = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;
-  virtual void toggleGPS() = 0;
+  virtual void setGpsEnabled(bool enabled) = 0;
   virtual Position getPosition() = 0;
   virtual DateTime2 getDateTime() = 0;
   virtual RadioDetails getRadioDetails() = 0;

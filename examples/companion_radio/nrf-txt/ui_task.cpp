@@ -17,6 +17,9 @@ void UITask::dispatchRender() {
   // TODO: alert handling. Make a control.
   _display->startFrame();
   auto delay_ms = _curr->render(*_display);
+  if (_prompt.isActive()) {
+    _prompt.render(*_display);
+  }
   renderAfter(delay_ms);
   _display->endFrame();
 }
@@ -98,7 +101,12 @@ void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
   if (kb && wakeScreen()) {
     //MESH_DEBUG_PRINTLN("%02x", kb);
-    _curr->handleInput(kb);
+    if (_prompt.isActive()) {
+      _prompt.handleInput(kb);
+      renderAfter(0);
+    } else {
+      _curr->handleInput(kb);
+    }
   }
 
   if (_buzzer.isPlaying())
@@ -122,6 +130,19 @@ bool UITask::isConnected() {
 
 bool UITask::isBuzzerEnabled() {
   return !_buzzer.isQuiet();
+}
+
+void UITask::prompt(
+  const char* title,
+  const char* const* items,
+  uint8_t count,
+  PromptCallback callback,
+  void* context) {
+  if (!callback || count == 0)
+    return;
+
+  _prompt.begin(title, items, count, callback, context);
+  renderAfter(0);
 }
 
 uint32_t UITask::getBlePin() {
@@ -168,7 +189,7 @@ void UITask::toggleBuzzer() {
   //_next_refresh = 0;
 }
 
-void UITask::toggleGPS() {
+void UITask::setGpsEnabled(bool enabled) {
   if (!_sensors)
     return;
 
@@ -176,21 +197,13 @@ void UITask::toggleGPS() {
   int num = _sensors->getNumSettings();
   for (int i = 0; i < num; i++) {
     if (strcmp(_sensors->getSettingName(i), "gps") == 0) {
-      MESH_DEBUG_PRINT("UITask::toggleGPS> ");
-      if (strcmp(_sensors->getSettingValue(i), "1") == 0) {
-        _sensors->setSettingValue("gps", "0");
-        _node_prefs->gps_enabled = 0;
-        notify(UIEventType::ack);
-        MESH_DEBUG_PRINTLN("Disabled GPS");
-      } else {
-        _sensors->setSettingValue("gps", "1");
-        _node_prefs->gps_enabled = 1;
-        notify(UIEventType::ack);
-        MESH_DEBUG_PRINTLN("Enabled GPS");
-      }
+      const char* value = enabled ? "1" : "0";
+      MESH_DEBUG_PRINT("UITask::setGpsEnabled> ");
+      _sensors->setSettingValue("gps", value);
+      _node_prefs->gps_enabled = enabled ? 1 : 0;
+      notify(UIEventType::ack);
+      MESH_DEBUG_PRINTLN("GPS Enabled: %c", value);
       the_mesh.savePrefs();
-      //showAlert(_node_prefs->gps_enabled ? "GPS: Enabled" : "GPS: Disabled", 800);
-      //_next_refresh = 0;
       break;
     }
   }

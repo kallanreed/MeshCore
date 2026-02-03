@@ -14,6 +14,7 @@
 #include "../NodePrefs.h"
 #include "nrf_hardware.h"
 #include "ui_view_model.h"
+#include "controls.h"
 
 // Used to control whether Vext is powered.
 extern RefCountedDigitalPin vext_power;
@@ -40,6 +41,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   UIScreen* _splash;
   UIScreen* _home;
   UIScreen* _curr;
+  MenuPrompt _prompt;
 
   void dispatchRender();
   void setCurrent(UIScreen* screen);
@@ -70,13 +72,19 @@ public:
   uint32_t getMsgCount() override;
   bool isConnected() override;
   bool isBuzzerEnabled() override;
+  void prompt(
+    const char* title,
+    const char* const* items,
+    uint8_t count,
+    PromptCallback callback,
+    void* context) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   void gotoHome() override { setCurrent(_home); }
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
-  void toggleGPS() override;
+  void setGpsEnabled(bool enabled) override;
   Position getPosition() override;
   DateTime2 getDateTime() override;
   RadioDetails getRadioDetails() override;

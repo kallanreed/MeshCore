@@ -116,6 +116,98 @@ public:
   virtual void activate() {};
 };
 
+class MenuPrompt {
+  const char* _title = nullptr;
+  const char* const* _items = nullptr;
+  uint8_t _count = 0;
+  int8_t _selected = 0;
+  bool _active = false;
+  PromptCallback _callback = nullptr;
+  void* _context = nullptr;
+
+  void finish(int result) {
+    _active = false;
+    if (_callback)
+      _callback(_context, result);
+    _callback = nullptr;
+    _context = nullptr;
+  }
+
+public:
+  void begin(
+    const char* title,
+    const char* const* items,
+    uint8_t count,
+    PromptCallback callback,
+    void* context) {
+    _title = title;
+    _items = items;
+    _count = count;
+    _selected = 0;
+    _active = count > 0;
+    _callback = callback;
+    _context = context;
+  }
+
+  bool isActive() const { return _active; }
+
+  void render(DisplayDriver& display) {
+    if (!_active)
+      return;
+
+    auto box_w = 180;
+    auto box_h = 135;
+    auto left = (display.width() - box_w) / 2;
+    auto top = 0;
+    auto center_x = left + (box_w / 2);
+
+    display.setColor(DisplayDriver::DARK);
+    display.fillRect(left, top, box_w, box_h);
+    display.setColor(DisplayDriver::LIGHT);
+    display.drawRect(left + 2, top + 2, box_w - 4, box_h - 4);
+
+    display.setTextSize(2);
+    display.drawTextCentered(center_x, top + 6, _title ? _title : "");
+    display.drawRect(left + 6, top + 24, box_w - 12, 1);
+
+    int y = top + 30;
+    int item_w = box_w - 12;
+    display.setTextSize(2);
+    for (uint8_t i = 0; i < _count; i++, y += 20) {
+      display.drawTextLeftAlign(left + 10, y, _items[i] ? _items[i] : "");
+      if (i == _selected) {
+        display.setColor(DisplayDriver::INVERSE);
+        display.fillRect(left + 6, y, item_w, 18);
+        display.setColor(DisplayDriver::LIGHT);
+      }
+    }
+  }
+
+  void handleInput(char c) {
+    if (!_active)
+      return;
+
+    switch (c) {
+      case KEY_UP:
+        if (_count > 0)
+          _selected = (_selected + _count - 1) % _count;
+        break;
+      case KEY_DOWN:
+        if (_count > 0)
+          _selected = (_selected + 1) % _count;
+        break;
+      case KEY_ENTER:
+        finish(_selected);
+        break;
+      case KEY_CANCEL:
+        finish(-1);
+        break;
+      default:
+        break;
+    }
+  }
+};
+
 class HomePage : public UIPage {
   char _text[24];
 
@@ -148,9 +240,6 @@ public:
         display.drawTextCentered(center_x, 70, _text);
       }
     }
-
-    display.setTextSize(1);
-    display.drawTextCentered(center_x, 100, "Enter to Toggle Buzzer");
   }
 
   void activate() override {
@@ -228,22 +317,19 @@ public:
 
     display.setTextSize(2);
     sprintf(tmp, "TX: %ddBm", details.transmit_power_dbm);
-    display.drawTextLeftAlign(3, 30, tmp);
+    display.drawTextLeftAlign(3, 40, tmp);
     sprintf(tmp, "Noise: %d", details.noise_floor_dbm);
-    display.drawTextLeftAlign(140, 30, tmp);
+    display.drawTextLeftAlign(140, 40, tmp);
 
     sprintf(tmp, "RSSI: %.1f", details.last_rssi_dbm);
-    display.drawTextLeftAlign(3, 50, tmp);
+    display.drawTextLeftAlign(3, 60, tmp);
     sprintf(tmp, "SNR: %.2f", details.last_snr_db);
-    display.drawTextLeftAlign(140, 50, tmp);
+    display.drawTextLeftAlign(140, 60, tmp);
 
     sprintf(tmp, "TX: %lu", details.packets_sent);
-    display.drawTextLeftAlign(3, 70, tmp);
+    display.drawTextLeftAlign(3, 80, tmp);
     sprintf(tmp, "RX: %lu", details.packets_received);
-    display.drawTextLeftAlign(140, 70, tmp);
-
-    display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 100, "Enter to Reset");
+    display.drawTextLeftAlign(140, 80, tmp);
   }
 
   void activate() override {
@@ -278,13 +364,20 @@ public:
     sprintf(tmp, "%.4f, %.4f", pos.latitude, pos.longitude);
     display.setTextSize(3);
     display.drawTextCentered(display.width() / 2, 55, tmp);
-
-    display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 100, "Enter to Toggle");
   }
 
   void activate() override {
-    _model->toggleGPS();
+    static const char* options[] = { "Enable", "Disable" };
+    _model->prompt("GPS Sensor", options, 2, onGpsPrompt, _model);
+  }
+
+private:
+  static void onGpsPrompt(void* context, int result) {
+    if (result < 0)
+      return;
+
+    auto* model = static_cast<UIViewModel*>(context);
+    model->setGpsEnabled(result == 0);
   }
 };
 
@@ -329,7 +422,7 @@ public:
     }
 
     sprintf(tmp, "%d/%d/%d", dt.month, dt.day, dt.year);
-    display.drawTextCentered(center_x, 1, tmp);
+    display.drawTextCentered(center_x, 5, tmp);
     // display.setColor(DisplayDriver::INVERSE);
     // display.fillRect(0, 0, 240, 18);
     // display.setColor(DisplayDriver::LIGHT);
@@ -361,12 +454,17 @@ public:
 
     display.setTextSize(2);
     display.drawTextCentered(center_x, 70, _model->getFirmwareVersion());
-
-    display.setTextSize(1);
-    display.drawTextCentered(center_x, 100, "Enter to Shutdown");
   }
 
   void activate() override {
-    _model->shutdown(false);
+    static const char* options[] = { "Yes", "No" };
+    _model->prompt("Shutdown?", options, 2, onShutdownPrompt, _model);
+  }
+
+private:
+  static void onShutdownPrompt(void* context, int result) {
+    if (result == 0 && context) {
+      static_cast<UIViewModel*>(context)->shutdown(false);
+    }
   }
 };
