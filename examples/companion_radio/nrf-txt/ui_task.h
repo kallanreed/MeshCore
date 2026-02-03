@@ -27,10 +27,12 @@ class UITask : public AbstractUITask, public UIViewModel {
 
   uint32_t _ui_started_at = 0;
   uint32_t _next_render = 0;
-  uint32_t _next_batt_chck = 0;
+  uint32_t _next_batt_check = 0;
   uint32_t _auto_off = 0;
-  uint32_t _alert_expiry = 0;
-  uint32_t _next_backlight_btn_check = 0;
+  //uint32_t _alert_expiry = 0;
+  //uint32_t _next_backlight_btn_check = 0;
+
+  float _batt_percent = 0;
 
   uint8_t _alert[80] = {};
   uint32_t _msgcount = 0;
@@ -65,6 +67,9 @@ public:
   void loop() override;
 
   // UIViewModel impl
+  uint32_t getMsgCount() override;
+  bool isConnected() override;
+  bool isBuzzerEnabled() override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   void gotoHome() override { setCurrent(_home); }
@@ -74,4 +79,8 @@ public:
   void toggleGPS() override;
   Position getPosition() override;
   DateTime2 getDateTime() override;
+  RadioDetails getRadioDetails() override;
+  void resetRadioStats() override;
+  const char* getFirmwareVersion() override;
+  float getBatteryPercent() override;
 };

@@ -58,7 +58,6 @@ void UITask::begin(
 
   wakeScreen();
   _ui_started_at = millis();
-  _alert_expiry = 0;
 
   _splash = new SplashScreen(this);
   _home = new HomeScreen(this);
@@ -66,13 +65,15 @@ void UITask::begin(
 }
 
 // --- AbstractUITask ---
-void UITask::msgRead(int msgcount) {}
+void UITask::msgRead(int msgcount) {
+}
 
 void UITask::newMsg(
   uint8_t path_len,
   const char* from_name,
   const char* text,
-  int msgcount) {}
+  int msgcount) {
+}
 
 void UITask::notify(UIEventType t) {
   switch(t) {
@@ -96,15 +97,8 @@ void UITask::notify(UIEventType t) {
 void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
   if (kb && wakeScreen()) {
-    MESH_DEBUG_PRINTLN("%02x", kb);
-    if (!_curr->handleInput(kb)) {
-      if (kb == 'Q')
-        shutdown();
-      else if (kb == 'G')
-        toggleGPS();
-      else if (kb == 'B')
-        toggleBuzzer();
-    }
+    //MESH_DEBUG_PRINTLN("%02x", kb);
+    _curr->handleInput(kb);
   }
 
   if (_buzzer.isPlaying())
@@ -118,6 +112,18 @@ void UITask::loop() {
 }
 
 // --- UIViewModel ---
+uint32_t UITask::getMsgCount() {
+  return _msgcount;
+}
+
+bool UITask::isConnected() {
+  return hasConnection();
+}
+
+bool UITask::isBuzzerEnabled() {
+  return !_buzzer.isQuiet();
+}
+
 uint32_t UITask::getBlePin() {
   return the_mesh.getBLEPin();
 }
@@ -214,7 +220,10 @@ DateTime2 UITask::getDateTime() {
   }
 
   uint32_t epoch = _rtc->getCurrentTime();
-  uint32_t seconds = epoch;
+  // TODO: TZ config with DST
+  int32_t offset = -8 * 60 * 60;
+
+  uint32_t seconds = epoch + offset;
   out.second = seconds % 60;
   seconds /= 60;
   out.minute = seconds % 60;
@@ -243,6 +252,43 @@ DateTime2 UITask::getDateTime() {
   out.month = static_cast<uint8_t>(month);
   out.day = static_cast<uint8_t>(day);
   return out;
+}
+
+RadioDetails UITask::getRadioDetails() {
+  RadioDetails details{};
+  if (_node_prefs) {
+    details.frequency = _node_prefs->freq;
+    details.spreading_factor = _node_prefs->sf;
+    details.bandwidth = _node_prefs->bw;
+    details.coding_factor = _node_prefs->cr;
+    details.transmit_power_dbm = _node_prefs->tx_power_dbm;
+  }
+  details.noise_floor_dbm = radio_driver.getNoiseFloor();
+  details.last_rssi_dbm = radio_driver.getLastRSSI();
+  details.last_snr_db = radio_driver.getLastSNR();
+  details.packets_sent = radio_driver.getPacketsSent();
+  details.packets_received = radio_driver.getPacketsRecv();
+  return details;
+}
+
+void UITask::resetRadioStats() {
+  radio_driver.resetStats();
+}
+
+const char* UITask::getFirmwareVersion() {
+  return FIRMWARE_VERSION;
+}
+
+float UITask::getBatteryPercent() {
+  if (millis() > _next_batt_check) {
+    auto mv = getBattMilliVolts() / 1000.0;
+    MESH_DEBUG_PRINTLN("Batt %f", mv); 
+    auto pct = (mv - 3.3) / .9; // 3.3-4.2
+    _batt_percent = pct > 1 ? 1 : pct < 0 ? 0 : pct;
+    _next_batt_check = millis() + 8000;
+  }
+
+  return _batt_percent;
 }
 
 // #include <helpers/TxtDataHelpers.h>

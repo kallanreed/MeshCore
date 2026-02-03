@@ -4,13 +4,11 @@
 
 // --- SplashScreen ---
 SplashScreen::SplashScreen(UIViewModel* model) : _model(model) {
-  // strip off dash and commit hash by changing dash to null terminator
-  // e.g: v1.2.3-abcdef -> v1.2.3
-  const char *ver = FIRMWARE_VERSION;
-  const char *dash = strchr(ver, '-');
+  auto ver = FIRMWARE_VERSION;
+  auto len = strlen(ver);
+  if (len >= sizeof(_version_info))
+    len = sizeof(_version_info) - 1;
 
-  int len = dash ? dash - ver : strlen(ver);
-  if (len >= sizeof(_version_info)) len = sizeof(_version_info) - 1;
   memcpy(_version_info, ver, len);
   _version_info[len] = 0;
 
@@ -43,21 +41,25 @@ void SplashScreen::poll() {
 // --- Page Instances ---
 extern UITask ui_task;
 static UIViewModel* view_model = &ui_task;
-static HomePage homePage = HomePage(view_model);
-static GpsPage gpsPage = GpsPage(view_model);
-static ClockPage clockPage = ClockPage(view_model);
-static PowerPage powerPage = PowerPage(view_model);
+static HomePage home_page = HomePage(view_model);
+static MsgPage msg_page = MsgPage(view_model);
+static ContactPage contact_page = ContactPage(view_model);
+static ChannelPage channel_page = ChannelPage(view_model);
+static RadioPage radio_page = RadioPage(view_model);
+static GpsPage gps_page = GpsPage(view_model);
+static ClockPage clock_page = ClockPage(view_model);
+static PowerPage power_page = PowerPage(view_model);
 
 // --- HomeScreen ---
 HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
-  _pages[0] = &homePage;
-  _pages[1] = &homePage;
-  _pages[2] = &homePage;
-  _pages[3] = &homePage;
-  _pages[4] = &homePage;
-  _pages[5] = &gpsPage;
-  _pages[6] = &clockPage;
-  _pages[7] = &powerPage;
+  _pages[0] = &home_page;
+  _pages[1] = &msg_page;
+  _pages[2] = &contact_page;
+  _pages[3] = &channel_page;
+  _pages[4] = &radio_page;
+  _pages[5] = &gps_page;
+  _pages[6] = &clock_page;
+  _pages[7] = &power_page;
 }
 
 int HomeScreen::render(DisplayDriver& display) {
@@ -73,7 +75,11 @@ int HomeScreen::render(DisplayDriver& display) {
 
   // Highlight selected.
   display.setColor(DisplayDriver::INVERSE);
-  display.fillRect(1 + (20 * _page), 117, 18, 18); 
+  display.fillRect(1 + (20 * _page), 117, 18, 18);
+  display.setColor(DisplayDriver::LIGHT);
+
+  // Draw battery.
+  _batt.render(display, _model->getBatteryPercent());
 
   return 1000;
 }

@@ -71,6 +71,29 @@ public:
   }
 };
 
+class BatteryIndicator {
+  uint8_t _x;
+  uint8_t _y;
+
+public:
+  BatteryIndicator(uint8_t x, uint8_t y) : _x(x), _y(y) {}
+
+  void render(DisplayDriver& display, float percent) {
+    char tmp[5];
+    sprintf(tmp, "%d", static_cast<uint8_t>(100 * percent));
+
+    display.setColor(DisplayDriver::LIGHT);
+    display.drawXbm(_x, _y, icon_batt, 16, 8, 2);
+
+    display.setColor(display.INVERSE);
+    display.fillRect(_x + 2, _y + 2, 24 * percent, 12);
+    display.setTextSize(1);
+    display.drawTextCentered(_x + 14, _y + 5, tmp);
+
+    display.setColor(DisplayDriver::LIGHT);
+  }
+};
+
 // Interface type for pages hosted on the HomeScreen.
 class UIPage {
 protected:
@@ -94,7 +117,7 @@ public:
 };
 
 class HomePage : public UIPage {
-  char _pin_code[12];
+  char _text[24];
 
 public:
   HomePage(UIViewModel* model) : UIPage(model) {}
@@ -104,15 +127,127 @@ public:
   }
 
   void renderPreview(DisplayDriver& display) override {
-    display.setTextSize(1);
-    display.drawTextLeftAlign(3, 5, "Q to shutdown");
-    display.setTextSize(2);
-    display.drawTextLeftAlign(3, 25, "G to toggle GPS");
-    display.setTextSize(3);
-    display.drawTextLeftAlign(3, 45, "B to toggle Buzzer");
+    auto center_x = display.width() / 2;
+    display.setColor(DisplayDriver::LIGHT);
 
-    sprintf(_pin_code, "Pin: %d", _model->getBlePin());
-    display.drawTextLeftAlign(3, 65, _pin_code);
+    if (_model->isBuzzerEnabled()) {
+      display.drawXbm(222, 2, icon_snd_on, 8, 8, 2);
+    }
+
+    display.setTextSize(3);
+    sprintf(_text, "MSG: %lu", _model->getMsgCount());
+    display.drawTextCentered(center_x, 40, _text);
+
+    display.setTextSize(2);
+    if (_model->isConnected()) {
+      display.drawTextCentered(center_x, 70, "Connected");
+    } else {
+      auto pin = _model->getBlePin();
+      if (pin != 0) {
+        sprintf(_text, "Pin: %lu", pin);
+        display.drawTextCentered(center_x, 70, _text);
+      }
+    }
+
+    display.setTextSize(1);
+    display.drawTextCentered(center_x, 100, "Enter to Toggle Buzzer");
+  }
+
+  void activate() override {
+    _model->toggleBuzzer();
+  }
+};
+
+class MsgPage : public UIPage {
+public:
+  MsgPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_msg;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+  }
+
+  void activate() override {
+  }
+};
+
+class ContactPage : public UIPage {
+public:
+  ContactPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_contact;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+  }
+
+  void activate() override {
+  }
+};
+
+class ChannelPage : public UIPage {
+public:
+  ChannelPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_channel;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+  }
+
+  void activate() override {
+  }
+};
+
+class RadioPage : public UIPage {
+public:
+  RadioPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_radio;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+    char tmp[40];
+    auto details = _model->getRadioDetails();
+
+    display.setTextSize(1);
+    sprintf(tmp, "FQ: %06.3f", details.frequency);
+    display.drawTextLeftAlign(3, 5, tmp);
+    sprintf(tmp, "SF: %d", details.spreading_factor);
+    display.drawTextLeftAlign(140, 5, tmp);
+
+    sprintf(tmp, "BW: %03.2f", details.bandwidth);
+    display.drawTextLeftAlign(3, 17, tmp);
+    sprintf(tmp, "CR: %d", details.coding_factor);
+    display.drawTextLeftAlign(140, 17, tmp);
+
+    display.setTextSize(2);
+    sprintf(tmp, "TX: %ddBm", details.transmit_power_dbm);
+    display.drawTextLeftAlign(3, 30, tmp);
+    sprintf(tmp, "Noise: %d", details.noise_floor_dbm);
+    display.drawTextLeftAlign(140, 30, tmp);
+
+    sprintf(tmp, "RSSI: %.1f", details.last_rssi_dbm);
+    display.drawTextLeftAlign(3, 50, tmp);
+    sprintf(tmp, "SNR: %.2f", details.last_snr_db);
+    display.drawTextLeftAlign(140, 50, tmp);
+
+    sprintf(tmp, "TX: %lu", details.packets_sent);
+    display.drawTextLeftAlign(3, 70, tmp);
+    sprintf(tmp, "RX: %lu", details.packets_received);
+    display.drawTextLeftAlign(140, 70, tmp);
+
+    display.setTextSize(1);
+    display.drawTextCentered(display.width() / 2, 100, "Enter to Reset");
+  }
+
+  void activate() override {
+    _model->resetRadioStats();
   }
 };
 
@@ -214,17 +349,21 @@ public:
     auto total_min = _model->getUptimeMin();
     auto hours = total_min / 60;
     auto minutes = total_min % 60;
+    auto center_x = display.width() / 2;
 
     if (hours > 0)
-      sprintf(tmp, "Uptime: %dH %dM", hours, minutes);
+      sprintf(tmp, "Uptime: %dh %dm", hours, minutes);
     else
-      sprintf(tmp, "Uptime: %dM", minutes);
+      sprintf(tmp, "Uptime: %dm", minutes);
 
     display.setTextSize(3);
-    display.drawTextCentered(display.width() / 2, 40, tmp);
+    display.drawTextCentered(center_x, 40, tmp);
+
+    display.setTextSize(2);
+    display.drawTextCentered(center_x, 70, _model->getFirmwareVersion());
 
     display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 70, "Enter to Shutdown");
+    display.drawTextCentered(center_x, 100, "Enter to Shutdown");
   }
 
   void activate() override {
