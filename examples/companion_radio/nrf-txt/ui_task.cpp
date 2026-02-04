@@ -1,8 +1,10 @@
 #include "ui_task.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "../MyMesh.h"
+#include <helpers/ChannelDetails.h>
 #include "screens.h"
 #include "target.h"
 
@@ -170,6 +172,23 @@ void UITask::promptText(
     callback,
     context);
   setCurrent(_text_input);
+}
+
+bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
+  if (!text)
+    return false;
+
+  auto len = strlen(text);
+  if (len == 0)
+    return false;
+
+  ChannelDetails details;
+  if (!the_mesh.getChannel(channel_index, details))
+    return false;
+
+  auto now = the_mesh.getRTCClock()->getCurrentTime();
+  auto name = the_mesh.getNodeName();
+  return the_mesh.sendGroupMessage(now, details.channel, name, text, len);
 }
 
 uint32_t UITask::getBlePin() {

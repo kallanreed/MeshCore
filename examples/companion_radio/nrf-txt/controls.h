@@ -303,6 +303,29 @@ public:
         display.fillRect(_x, y, _w, _row_h);
       }
     }
+
+    if (_count == 0 || visible == 0 || _count <= visible)
+      return;
+
+    // Draw scrollbar.
+    display.setColor(DisplayDriver::DARK);
+    display.fillRect(_x + _w - 2, _y, 2, _h);
+
+    // Scale indicator height based on the visible/total ratio.
+    int indicator_y = _y;
+    int indicator_h = (_h * visible) / _count;
+    if (indicator_h < 1)
+      indicator_h = 1;
+
+    // Map the top row to the indicator track height.
+    if (_count > visible) {
+      int max_offset = _count - visible;
+      int track = _h - indicator_h;
+      indicator_y = _y + (track * _top) / max_offset;
+    }
+
+    display.setColor(DisplayDriver::LIGHT);
+    display.fillRect(_x + _w - 1, indicator_y, 1, indicator_h);
   }
 };
 
@@ -532,6 +555,16 @@ public:
 };
 
 class ChannelPage : public UIPage {
+  char _text[128] = {};
+
+  static void onChannelText(void* context, const char* text) {
+    auto* page = static_cast<ChannelPage*>(context);
+    if (!page)
+      return;
+
+    page->_model->sendChannelMessage(0, text);
+  }
+
 public:
   ChannelPage(UIViewModel* model) : UIPage(model) {}
 
@@ -540,6 +573,15 @@ public:
   }
 
   void renderPreview(DisplayDriver& display) override {
+    display.drawTextLeftAlign(5, 5, "Enter to input text");
+  }
+
+  bool handleInput(char c) override {
+    if (c != KEY_ENTER)
+      return false;
+
+    _model->promptText(_text, sizeof(_text), onChannelText, this);
+    return true;
   }
 };
 

@@ -246,7 +246,7 @@ void TextInputScreen::begin(
 }
 
 int TextInputScreen::render(DisplayDriver& display) {
-  display.setTextSize(1);
+  display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
 
   if (!_buffer || _capacity == 0) {
@@ -256,7 +256,7 @@ int TextInputScreen::render(DisplayDriver& display) {
 
   int cursor_x = 0;
   int cursor_y = 0;
-  int line_height = 10;
+  int line_height = 18;
   drawWrappedText(
     display,
     _buffer,
@@ -282,6 +282,11 @@ int TextInputScreen::render(DisplayDriver& display) {
 
   int underline_y = cursor_y + line_height - 2;
   display.fillRect(cursor_x, underline_y, underline_w, 2);
+
+  display.setTextSize(1);
+  char counter[16];
+  snprintf(counter, sizeof(counter), "%u/%u", _length, _capacity);
+  display.drawTextRightAlign(display.width() - 2, display.height() - 10, counter);
 
   return 1000;
 }

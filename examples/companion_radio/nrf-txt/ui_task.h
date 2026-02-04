@@ -86,6 +86,7 @@ public:
     uint8_t capacity,
     TextInputCallback callback,
     void* context) override;
+  bool sendChannelMessage(uint8_t channel_index, const char* text) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   void gotoHome() override { setCurrent(_home); }
