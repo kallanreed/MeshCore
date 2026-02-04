@@ -33,7 +33,7 @@ struct RadioDetails {
 };
 
 constexpr uint8_t kMessageSenderSize = 24;
-constexpr uint8_t kMessageTextSize = 96;
+constexpr uint8_t kMessageTextSize = 128;
 constexpr uint8_t kMessageBufferSize = 32;
 
 struct MessageEntry {
@@ -75,7 +75,7 @@ public:
   virtual DateTime2 getDateTime() = 0;
   virtual RadioDetails getRadioDetails() = 0;
   virtual void resetRadioStats() = 0;
-  // offset 0 is the most recent message.
+  // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
   virtual void markMessageRead(uint8_t offset) = 0;
   virtual const char* getFirmwareVersion() = 0;

@@ -243,6 +243,19 @@ public:
   uint8_t getSelected() const { return _selected; }
   uint8_t getTop() const { return _top; }
 
+  void setSelected(uint8_t selected) {
+    if (_count == 0) {
+      reset();
+      return;
+    }
+
+    if (selected >= _count)
+      selected = _count - 1;
+
+    _selected = selected;
+    clampTop();
+  }
+
   void reset() {
     _selected = 0;
     _top = 0;
@@ -299,7 +312,11 @@ class MessageBuffer {
   uint8_t _count = 0;
 
   uint8_t toIndex(uint8_t offset) const {
-    return (_head + kMessageBufferSize - 1 - offset) % kMessageBufferSize;
+    uint8_t oldest = 0;
+    if (_count == kMessageBufferSize)
+      oldest = _head;
+
+    return (oldest + offset) % kMessageBufferSize;
   }
 
 public:
@@ -470,7 +487,22 @@ public:
   void activate() override {
     _list.setCount(static_cast<uint8_t>(_model->getMsgCount()));
     _list.reset();
-    _model->renderAfter(0);
+    auto count = _list.getCount();
+    bool found_unread = false;
+    for (uint8_t offset = 0; offset < count; offset++) {
+      MessageEntry entry{};
+      if (_model->getMessages(offset, 1, &entry) == 0)
+        continue;
+
+      if (!entry.read) {
+        _list.setSelected(offset);
+        found_unread = true;
+        break;
+      }
+    }
+
+    if (!found_unread && count > 0)
+      _list.setSelected(static_cast<uint8_t>(count - 1));
   }
 
   bool handleInput(char c) override {
