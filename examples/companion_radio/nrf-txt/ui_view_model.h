@@ -32,6 +32,17 @@ struct RadioDetails {
   uint32_t packets_received;
 };
 
+constexpr uint8_t kMessageSenderSize = 24;
+constexpr uint8_t kMessageTextSize = 96;
+constexpr uint8_t kMessageBufferSize = 32;
+
+struct MessageEntry {
+  bool read;
+  uint32_t timestamp_ms;
+  char sender[kMessageSenderSize];
+  char message[kMessageTextSize];
+};
+
 using PromptCallback = void (*)(void* context, int result);
 
 // Abstracts the hardware APIs from the UI.
@@ -49,6 +60,7 @@ public:
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
   virtual void gotoHome() = 0;
+  virtual void gotoMsgViewer(uint8_t offset) = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;
@@ -57,6 +69,9 @@ public:
   virtual DateTime2 getDateTime() = 0;
   virtual RadioDetails getRadioDetails() = 0;
   virtual void resetRadioStats() = 0;
+  // offset 0 is the most recent message.
+  virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
+  virtual void markMessageRead(uint8_t offset) = 0;
   virtual const char* getFirmwareVersion() = 0;
   virtual float getBatteryPercent() = 0;
 };

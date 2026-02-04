@@ -1,6 +1,23 @@
 #include "screens.h"
-#include "ui_task.h"
 #include "../MyMesh.h"
+#include "ui_task.h"
+
+namespace {
+void formatAge(char* out, size_t size, uint32_t timestamp_ms) {
+  uint32_t age_ms = millis() - timestamp_ms;
+  uint32_t age_sec = age_ms / 1000;
+
+  if (age_sec < 60) {
+    snprintf(out, size, "%lus", static_cast<unsigned long>(age_sec));
+  } else if (age_sec < 60 * 60) {
+    snprintf(out, size, "%lum", static_cast<unsigned long>(age_sec / 60));
+  } else if (age_sec < 60 * 60 * 24) {
+    snprintf(out, size, "%luh", static_cast<unsigned long>(age_sec / (60 * 60)));
+  } else {
+    snprintf(out, size, "%lud", static_cast<unsigned long>(age_sec / (60 * 60 * 24)));
+  }
+}
+}  // namespace
 
 // --- SplashScreen ---
 SplashScreen::SplashScreen(UIViewModel* model) : _model(model) {
@@ -38,6 +55,78 @@ void SplashScreen::poll() {
     _model->gotoHome();
 }
 
+// --- MsgViewer ---
+MsgViewer::MsgViewer(UIViewModel* model) : _model(model) {
+}
+
+void MsgViewer::setOffset(uint8_t offset) {
+  _offset = offset;
+  loadMessage();
+  _model->renderAfter(0);
+}
+
+void MsgViewer::loadMessage() {
+  _has_message = _model->getMessages(_offset, 1, &_message) == 1;
+  if (_has_message)
+    _model->markMessageRead(_offset);
+}
+
+int MsgViewer::render(DisplayDriver& display) {
+  display.setTextSize(2);
+  display.setColor(DisplayDriver::LIGHT);
+
+  if (!_has_message) {
+    display.drawTextLeftAlign(display.width() / 2, 60, "No messages");
+    return 1000;
+  }
+
+  char sender[kMessageSenderSize];
+  display.translateUTF8ToBlocks(sender, _message.sender, sizeof(sender));
+  display.drawTextLeftAlign(2, 2, sender);
+
+  char age[12];
+  formatAge(age, sizeof(age), _message.timestamp_ms);
+  display.drawTextRightAlign(display.width() - 2, 2, age);
+
+  display.drawRect(0, 20, display.width(), 1);
+
+  char message[kMessageTextSize];
+  display.translateUTF8ToBlocks(message, _message.message, sizeof(message));
+  display.setCursor(2, 24);
+  display.printWordWrap(message, display.width() - 4);
+
+  return 1000;
+}
+
+bool MsgViewer::handleInput(char c) {
+  if (c == KEY_CANCEL) {
+    _model->gotoHome();
+    return true;
+  }
+
+  bool handled = false;
+
+  if (c == KEY_UP) {
+    if (_offset > 0) {
+      _offset--;
+      loadMessage();
+      handled = true;
+    }
+  } else if (c == KEY_DOWN) {
+    auto count = _model->getMsgCount();
+    if (_offset + 1 < count) {
+      _offset++;
+      loadMessage();
+      handled = true;
+    }
+  }
+
+  if (handled)
+    _model->renderAfter(0);
+
+  return handled;
+}
+
 // --- Page Instances ---
 extern UITask ui_task;
 static UIViewModel* view_model = &ui_task;
@@ -60,6 +149,8 @@ HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[5] = &gps_page;
   _pages[6] = &clock_page;
   _pages[7] = &power_page;
+
+  current()->activate();
 }
 
 int HomeScreen::render(DisplayDriver& display) {
@@ -85,19 +176,18 @@ int HomeScreen::render(DisplayDriver& display) {
 }
 
 bool HomeScreen::handleInput(char c) {
-  bool handled = false;
+  bool handled = current()->handleInput(c);
 
-  // TODO: allow page first dibs?
-
-  if (c == KEY_LEFT) {
-    _page = (_pages.size() + _page - 1) % _pages.size();
-    handled = true;
-  } else if (c == KEY_RIGHT) {
-    _page = (_page + 1) % _pages.size();
-    handled = true;
-  } else if (c == KEY_ENTER) {
-    current()->activate();
-    handled = true;
+  if (!handled) {
+    if (c == KEY_LEFT) {
+      _page = (_pages.size() + _page - 1) % _pages.size();
+      current()->activate();
+      handled = true;
+    } else if (c == KEY_RIGHT) {
+      _page = (_page + 1) % _pages.size();
+      current()->activate();
+      handled = true;
+    }
   }
 
   if (handled)
@@ -106,8 +196,7 @@ bool HomeScreen::handleInput(char c) {
   return handled;
 }
 
-void HomeScreen::poll() {
-}
+void HomeScreen::poll() {}
 
 // class HomeScreen : public UIScreen {
 //   enum HomePage {

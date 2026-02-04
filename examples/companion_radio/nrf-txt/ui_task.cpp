@@ -1,5 +1,7 @@
 #include "ui_task.h"
 
+#include <stdio.h>
+
 #include "../MyMesh.h"
 #include "screens.h"
 #include "target.h"
@@ -64,11 +66,16 @@ void UITask::begin(
 
   _splash = new SplashScreen(this);
   _home = new HomeScreen(this);
+  _msg_viewer = new MsgViewer(this);
   setCurrent(_splash);
 }
 
 // --- AbstractUITask ---
 void UITask::msgRead(int msgcount) {
+  if (msgcount == 0)
+    _message_buffer.markAllRead();
+
+  _msgcount = _message_buffer.getCount();
 }
 
 void UITask::newMsg(
@@ -76,6 +83,9 @@ void UITask::newMsg(
   const char* from_name,
   const char* text,
   int msgcount) {
+  _message_buffer.addMessage(millis(), from_name ? from_name : "", text ? text : "");
+  _msgcount = _message_buffer.getCount();
+  renderAfter(0);
 }
 
 void UITask::notify(UIEventType t) {
@@ -121,7 +131,7 @@ void UITask::loop() {
 
 // --- UIViewModel ---
 uint32_t UITask::getMsgCount() {
-  return _msgcount;
+  return _message_buffer.getCount();
 }
 
 bool UITask::isConnected() {
@@ -152,6 +162,11 @@ uint32_t UITask::getBlePin() {
 uint32_t UITask::getUptimeMin() {
   auto uptime_millis = millis() - _ui_started_at;
   return uptime_millis / 1000 / 60;
+}
+
+void UITask::gotoMsgViewer(uint8_t offset) {
+  static_cast<MsgViewer*>(_msg_viewer)->setOffset(offset);
+  setCurrent(_msg_viewer);
 }
 
 void UITask::renderAfter(uint32_t delay_ms) {
@@ -286,6 +301,14 @@ RadioDetails UITask::getRadioDetails() {
 
 void UITask::resetRadioStats() {
   radio_driver.resetStats();
+}
+
+uint8_t UITask::getMessages(uint8_t offset, uint8_t count, MessageEntry* out) {
+  return _message_buffer.getMessages(offset, count, out);
+}
+
+void UITask::markMessageRead(uint8_t offset) {
+  _message_buffer.markRead(offset);
 }
 
 const char* UITask::getFirmwareVersion() {

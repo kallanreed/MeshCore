@@ -37,9 +37,11 @@ class UITask : public AbstractUITask, public UIViewModel {
 
   uint8_t _alert[80] = {};
   uint32_t _msgcount = 0;
+  MessageBuffer _message_buffer;
 
   UIScreen* _splash;
   UIScreen* _home;
+  UIScreen* _msg_viewer;
   UIScreen* _curr;
   MenuPrompt _prompt;
 
@@ -81,6 +83,7 @@ public:
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   void gotoHome() override { setCurrent(_home); }
+  void gotoMsgViewer(uint8_t offset) override;
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
@@ -89,6 +92,8 @@ public:
   DateTime2 getDateTime() override;
   RadioDetails getRadioDetails() override;
   void resetRadioStats() override;
+  uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
+  void markMessageRead(uint8_t offset) override;
   const char* getFirmwareVersion() override;
   float getBatteryPercent() override;
 };
