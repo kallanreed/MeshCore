@@ -44,6 +44,7 @@ struct MessageEntry {
 };
 
 using PromptCallback = void (*)(void* context, int result);
+using TextInputCallback = void (*)(void* context, const char* text);
 
 // Abstracts the hardware APIs from the UI.
 class UIViewModel {
@@ -56,6 +57,11 @@ public:
     const char* const* items,
     uint8_t count,
     PromptCallback callback,
+    void* context) = 0;
+  virtual void promptText(
+    char* buffer,
+    uint8_t capacity,
+    TextInputCallback callback,
     void* context) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;

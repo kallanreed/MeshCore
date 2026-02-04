@@ -1,6 +1,8 @@
 #include "screens.h"
 #include "../MyMesh.h"
 #include "ui_task.h"
+#include <stdio.h>
+#include <string.h>
 
 namespace {
 void formatAge(char* out, size_t size, uint32_t timestamp_ms) {
@@ -16,6 +18,96 @@ void formatAge(char* out, size_t size, uint32_t timestamp_ms) {
   } else {
     snprintf(out, size, "%lud", static_cast<unsigned long>(age_sec / (60 * 60 * 24)));
   }
+}
+
+uint8_t safeStrLen(const char* text, uint8_t max_len) {
+  if (!text)
+    return 0;
+
+  for (uint8_t i = 0; i < max_len; i++) {
+    if (text[i] == 0)
+      return i;
+  }
+
+  return max_len;
+}
+
+void drawWrappedText(
+  DisplayDriver& display,
+  const char* text,
+  uint8_t length,
+  int x,
+  int y,
+  int max_width,
+  int max_height,
+  int line_height,
+  uint8_t cursor,
+  int* cursor_x,
+  int* cursor_y) {
+  char line[64] = {};
+  uint8_t line_len = 0;
+  bool cursor_set = false;
+  int cursor_draw_x = x;
+  int cursor_draw_y = y;
+
+  auto flush_line = [&](bool force) {
+    if (line_len == 0 && !force)
+      return;
+
+    display.drawTextLeftAlign(x, y, line);
+    y += line_height;
+    line_len = 0;
+    line[0] = 0;
+  };
+
+  for (uint8_t i = 0; i <= length; i++) {
+    if (!cursor_set && i == cursor) {
+      cursor_draw_x = x + display.getTextWidth(line);
+      cursor_draw_y = y;
+      cursor_set = true;
+    }
+
+    if (i == length)
+      break;
+
+    if (line_len + 1 >= sizeof(line)) {
+      flush_line(false);
+      if (y + line_height > max_height)
+        break;
+    }
+
+    char ch[2] = { text[i], 0 };
+    char next_line[64];
+    if (line_len + 1 >= sizeof(next_line)) {
+      next_line[0] = 0;
+    } else if (line_len == 0) {
+      snprintf(next_line, sizeof(next_line), "%s", ch);
+    } else {
+      snprintf(next_line, sizeof(next_line), "%s%s", line, ch);
+    }
+
+    bool needs_wrap = display.getTextWidth(next_line) > max_width;
+    if (needs_wrap) {
+      flush_line(false);
+      if (y + line_height > max_height)
+        break;
+    }
+
+    line[line_len++] = text[i];
+    line[line_len] = 0;
+  }
+
+  flush_line(true);
+
+  if (!cursor_set) {
+    cursor_draw_x = x;
+    cursor_draw_y = y;
+  }
+
+  if (cursor_x)
+    *cursor_x = cursor_draw_x;
+  if (cursor_y)
+    *cursor_y = cursor_draw_y;
 }
 }  // namespace
 
@@ -123,6 +215,132 @@ bool MsgViewer::handleInput(char c) {
 
   if (handled)
     _model->renderAfter(0);
+
+  return handled;
+}
+
+// --- TextInputScreen ---
+TextInputScreen::TextInputScreen(UIViewModel* model)
+  : _model(model) {
+}
+
+void TextInputScreen::begin(
+  char* buffer,
+  uint8_t capacity,
+  TextInputCallback callback,
+  void* context) {
+  _buffer = buffer;
+  _capacity = capacity;
+  _callback = callback;
+  _context = context;
+
+  if (_capacity == 0) {
+    _length = 0;
+    _cursor = 0;
+    return;
+  }
+
+  _length = safeStrLen(_buffer, static_cast<uint8_t>(_capacity - 1));
+  _buffer[_length] = 0;
+  _cursor = _length;
+}
+
+int TextInputScreen::render(DisplayDriver& display) {
+  display.setTextSize(1);
+  display.setColor(DisplayDriver::LIGHT);
+
+  if (!_buffer || _capacity == 0) {
+    display.drawTextLeftAlign(0, 0, "No buffer");
+    return 1000;
+  }
+
+  int cursor_x = 0;
+  int cursor_y = 0;
+  int line_height = 10;
+  drawWrappedText(
+    display,
+    _buffer,
+    _length,
+    0,
+    0,
+    display.width(),
+    display.height(),
+    line_height,
+    _cursor,
+    &cursor_x,
+    &cursor_y);
+
+  int underline_w = display.getTextWidth("_");
+  if (_cursor < _length) {
+    char ch[2] = { _buffer[_cursor], 0 };
+    underline_w = display.getTextWidth(ch);
+  }
+
+  if (underline_w < 2) {
+    underline_w = 2;
+  }
+
+  int underline_y = cursor_y + line_height - 2;
+  display.fillRect(cursor_x, underline_y, underline_w, 2);
+
+  return 1000;
+}
+
+bool TextInputScreen::handleInput(char c) {
+  if (!_buffer || _capacity == 0)
+    return false;
+
+  if (c == KEY_CANCEL) {
+    _model->gotoHome();
+    return true;
+  }
+
+  bool handled = false;
+
+  if (c == KEY_LEFT) {
+    if (_cursor > 0) {
+      _cursor--;
+    }
+    handled = true;
+  } else if (c == KEY_RIGHT) {
+    if (_cursor < _length) {
+      _cursor++;
+    }
+    handled = true;
+  } else if (c == KEY_ENTER) {
+    _buffer[_length] = 0;
+    if (_callback)
+      _callback(_context, _buffer);
+    _model->gotoHome();
+    return true;
+  } else if (c == 8 || c == 127) {
+    if (_cursor == 0)
+      return true;
+
+    memmove(_buffer + _cursor - 1, _buffer + _cursor, _length - _cursor);
+    _cursor--;
+    _length--;
+    _buffer[_length] = 0;
+    handled = true;
+  } else if (c < 32 || c > 126) {
+    return false;
+  } else if (_length + 1 >= _capacity) {
+    handled = true;
+  } else {
+    if (_cursor < _length) {
+      memmove(_buffer + _cursor + 1, _buffer + _cursor, _length - _cursor);
+    }
+
+    _buffer[_cursor] = c;
+    _cursor++;
+    _length++;
+    _buffer[_length] = 0;
+    handled = true;
+  }
+
+  if (handled) {
+    _model->renderAfter(0);
+  }
 
   return handled;
 }

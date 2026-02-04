@@ -67,6 +67,7 @@ void UITask::begin(
   _splash = new SplashScreen(this);
   _home = new HomeScreen(this);
   _msg_viewer = new MsgViewer(this);
+  _text_input = new TextInputScreen(this);
   setCurrent(_splash);
 }
 
@@ -153,6 +154,22 @@ void UITask::prompt(
 
   _prompt.begin(title, items, count, callback, context);
   renderAfter(0);
+}
+
+void UITask::promptText(
+  char* buffer,
+  uint8_t capacity,
+  TextInputCallback callback,
+  void* context) {
+  if (!_text_input || !buffer || capacity == 0)
+    return;
+
+  static_cast<TextInputScreen*>(_text_input)->begin(
+    buffer,
+    capacity,
+    callback,
+    context);
+  setCurrent(_text_input);
 }
 
 uint32_t UITask::getBlePin() {

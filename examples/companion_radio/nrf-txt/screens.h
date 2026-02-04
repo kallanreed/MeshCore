@@ -40,6 +40,27 @@ public:
   bool handleInput(char c) override;
 };
 
+class TextInputScreen : public UIScreen
+{
+  UIViewModel* _model;
+  char* _buffer = nullptr;
+  uint8_t _capacity = 0;
+  uint8_t _length = 0;
+  uint8_t _cursor = 0;
+  TextInputCallback _callback = nullptr;
+  void* _context = nullptr;
+
+public:
+  TextInputScreen(UIViewModel* model);
+  void begin(
+    char* buffer,
+    uint8_t capacity,
+    TextInputCallback callback,
+    void* context);
+  int render(DisplayDriver& display) override;
+  bool handleInput(char c) override;
+};
+
 class HomeScreen : public UIScreen
 {
   UIViewModel* _model;

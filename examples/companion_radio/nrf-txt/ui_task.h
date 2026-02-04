@@ -42,6 +42,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   UIScreen* _splash;
   UIScreen* _home;
   UIScreen* _msg_viewer;
+  UIScreen* _text_input;
   UIScreen* _curr;
   MenuPrompt _prompt;
 
@@ -79,6 +80,11 @@ public:
     const char* const* items,
     uint8_t count,
     PromptCallback callback,
+    void* context) override;
+  void promptText(
+    char* buffer,
+    uint8_t capacity,
+    TextInputCallback callback,
     void* context) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
