@@ -225,10 +225,17 @@ TextInputScreen::TextInputScreen(UIViewModel* model)
 }
 
 void TextInputScreen::begin(
+  const char* title,
   char* buffer,
   uint8_t capacity,
   TextInputCallback callback,
   void* context) {
+  if (title) {
+    strncpy(_title, title, sizeof(_title));
+    _title[sizeof(_title) - 1] = 0;
+  } else {
+    _title[0] = 0;
+  }
   _buffer = buffer;
   _capacity = capacity;
   _callback = callback;
@@ -249,10 +256,17 @@ int TextInputScreen::render(DisplayDriver& display) {
   display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
   const int margin = 2;
+  int text_y = margin;
 
   if (!_buffer || _capacity == 0) {
     display.drawTextLeftAlign(margin, margin, "No buffer");
     return 1000;
+  }
+
+  if (_title[0] != 0) {
+    display.drawTextLeftAlign(margin, margin, _title);
+    display.drawRect(0, 20, display.width(), 1);
+    text_y = 24;
   }
 
   int cursor_x = 0;
@@ -263,7 +277,7 @@ int TextInputScreen::render(DisplayDriver& display) {
     _buffer,
     _length,
     margin,
-    margin,
+    text_y,
     display.width() - (margin * 2),
     display.height() - (margin * 2),
     line_height,
@@ -421,6 +435,10 @@ bool HomeScreen::handleInput(char c) {
 }
 
 void HomeScreen::poll() {}
+
+void HomeScreen::activate() {
+  current()->activate();
+}
 
 // class HomeScreen : public UIScreen {
 //   enum HomePage {

@@ -30,6 +30,7 @@ void UITask::dispatchRender() {
 
 void UITask::setCurrent(UIScreen* screen) {
   _curr = screen;
+  _curr->activate();
   renderAfter(0);
 }
 
@@ -108,11 +109,12 @@ void UITask::notify(UIEventType t) {
 
 void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
-  if (kb && wakeScreen()) {
-    //MESH_DEBUG_PRINTLN("%02x", kb);
-    if (_prompt.isActive()) {
+  if (kb) {
+    if (!wakeScreen()) {
+      // Screen was off, call activate to ready the page.
+      _curr->activate();
+    } else if (_prompt.isActive()) {
       _prompt.handleInput(kb);
-      renderAfter(0);
     } else {
       _curr->handleInput(kb);
     }
@@ -159,6 +161,7 @@ void UITask::prompt(
 }
 
 void UITask::promptText(
+  const char* title,
   char* buffer,
   uint8_t capacity,
   TextInputCallback callback,
@@ -167,6 +170,7 @@ void UITask::promptText(
     return;
 
   static_cast<TextInputScreen*>(_text_input)->begin(
+    title,
     buffer,
     capacity,
     callback,
@@ -189,6 +193,42 @@ bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
   auto now = the_mesh.getRTCClock()->getCurrentTime();
   auto name = the_mesh.getNodeName();
   return the_mesh.sendGroupMessage(now, details.channel, name, text, len);
+}
+
+uint8_t UITask::getChannelSlots(uint8_t* slots, uint8_t max) {
+  if (!slots || max == 0)
+    return 0;
+
+  uint8_t count = 0;
+  for (uint8_t i = 0; i < MAX_GROUP_CHANNELS && count < max; i++) {
+    ChannelDetails details;
+    if (!the_mesh.getChannel(i, details))
+      continue;
+
+    bool has_secret = false;
+    for (size_t j = 0; j < sizeof(details.channel.secret); j++) {
+      if (details.channel.secret[j] != 0) {
+        has_secret = true;
+        break;
+      }
+    }
+
+    if (!has_secret)
+      continue;
+
+    slots[count++] = i;
+  }
+
+  return count;
+}
+
+const char* UITask::getChannelName(uint8_t slot) {
+  static ChannelDetails details;
+  if (!the_mesh.getChannel(slot, details))
+    return nullptr;
+
+  // TODO: may need special case for "Public"
+  return details.name;
 }
 
 uint32_t UITask::getBlePin() {

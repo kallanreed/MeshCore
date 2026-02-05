@@ -43,6 +43,7 @@ public:
 class TextInputScreen : public UIScreen
 {
   UIViewModel* _model;
+  char _title[48] = {};
   char* _buffer = nullptr;
   uint8_t _capacity = 0;
   uint8_t _length = 0;
@@ -53,6 +54,7 @@ class TextInputScreen : public UIScreen
 public:
   TextInputScreen(UIViewModel* model);
   void begin(
+    const char* title,
     char* buffer,
     uint8_t capacity,
     TextInputCallback callback,
@@ -74,5 +76,6 @@ public:
   HomeScreen(UIViewModel* model);
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
+  void activate() override;
   void poll() override;
 };

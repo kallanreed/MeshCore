@@ -564,32 +564,85 @@ public:
 };
 
 class ChannelPage : public UIPage {
-  char _text[128] = {};
+  ScrollList _list = ScrollList(0, 0, 240, 116, 20);
+  char _text[128] = {};  // TODO: reuse across pages?
+  uint8_t _selected_channel = 0;
+  uint8_t _slots[16] = {};
+  uint8_t _slot_count = 0;
 
   static void onChannelText(void* context, const char* text) {
     auto* page = static_cast<ChannelPage*>(context);
     if (!page)
       return;
 
-    page->_model->sendChannelMessage(0, text);
+    page->_model->sendChannelMessage(page->_selected_channel, text);
+  }
+
+  void refreshChannels() {
+    _slot_count = _model->getChannelSlots(_slots, sizeof(_slots));
+  }
+
+  static void renderChannelItem(
+    DisplayDriver& display,
+    uint8_t index,
+    int x,
+    int y,
+    int w,
+    int h,
+    void* context) {
+    auto* page = static_cast<ChannelPage*>(context);
+    if (index >= page->_slot_count)
+      return;
+
+    auto slot = page->_slots[index];
+    auto name = page->_model->getChannelName(slot);
+    if (!name)
+      return;
+
+    display.setTextSize(2);
+    display.drawTextLeftAlign(x + 6, y, name);
   }
 
 public:
-  ChannelPage(UIViewModel* model) : UIPage(model) {}
+  ChannelPage(UIViewModel* model) : UIPage(model) {
+    _list.setRenderer(renderChannelItem, this);
+  }
 
   const uint8_t* getIcon() override {
     return icon_channel;
   }
 
   void renderPreview(DisplayDriver& display) override {
-    display.drawTextLeftAlign(5, 5, "Enter to input text");
+    _list.render(display);
+  }
+
+  void activate() override {
+    refreshChannels();
+    _list.setCount(_slot_count);
+    _list.reset();
+    if (_list.getCount() > 0)
+      _list.setSelected(0);
   }
 
   bool handleInput(char c) override {
+    if (_list.handleInput(c))
+      return true;
+
     if (c != KEY_ENTER)
       return false;
 
-    _model->promptText(_text, sizeof(_text), onChannelText, this);
+    if (_list.getCount() == 0)
+      return true;
+
+    if (_list.getSelected() < _slot_count) {
+      _selected_channel = _slots[_list.getSelected()];
+      _text[0] = 0; // Reset buffer.
+      char title[48];
+      auto name = _model->getChannelName(_selected_channel);
+      snprintf(title, sizeof(title), "Send to %s", name);
+      _model->promptText(title, _text, sizeof(_text), onChannelText, this);
+    }
+
     return true;
   }
 };
