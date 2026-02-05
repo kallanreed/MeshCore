@@ -310,7 +310,7 @@ bool TextInputScreen::handleInput(char c) {
   if (!_buffer || _capacity == 0)
     return false;
 
-  if (c == KEY_CANCEL) {
+  if (c == KEY_CANCEL || c == KEY_ENTER) {
     _model->gotoHome();
     return true;
   }

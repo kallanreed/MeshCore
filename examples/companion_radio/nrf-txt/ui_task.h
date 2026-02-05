@@ -88,6 +88,9 @@ public:
   bool sendChannelMessage(uint8_t channel_index, const char* text) override;
   uint8_t getChannelSlots(uint8_t* slots, uint8_t max) override;
   const char* getChannelName(uint8_t slot) override;
+  uint8_t getContactSlots(uint8_t* slots, uint8_t max) override;
+  const char* getContactName(uint8_t slot) override;
+  bool sendContactMessage(uint8_t slot, const char* text) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   void gotoHome() override { setCurrent(_home); }

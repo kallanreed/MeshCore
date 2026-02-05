@@ -553,13 +553,87 @@ public:
 
 class ContactPage : public UIPage {
 public:
-  ContactPage(UIViewModel* model) : UIPage(model) {}
+  ScrollList _list = ScrollList(0, 0, 240, 116, 20);
+  char _text[128] = {};
+  uint8_t _selected_contact = 0;
+  uint8_t _slots[16] = {};
+  uint8_t _slot_count = 0;
+
+  static void onContactText(void* context, const char* text) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page)
+      return;
+
+    page->_model->sendContactMessage(page->_selected_contact, text);
+  }
+
+  void refreshContacts() {
+    _slot_count = _model->getContactSlots(_slots, sizeof(_slots));
+  }
+
+  static void renderContactItem(
+    DisplayDriver& display,
+    uint8_t index,
+    int x,
+    int y,
+    int w,
+    int h,
+    void* context) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page)
+      return;
+
+    if (index >= page->_slot_count)
+      return;
+
+    auto slot = page->_slots[index];
+    auto name = page->_model->getContactName(slot);
+    if (!name)
+      return;
+
+    display.setTextSize(2);
+    display.drawTextLeftAlign(x + 6, y, name);
+  }
+
+  ContactPage(UIViewModel* model) : UIPage(model) {
+    _list.setRenderer(renderContactItem, this);
+  }
 
   const uint8_t* getIcon() override {
     return icon_contact;
   }
 
   void renderPreview(DisplayDriver& display) override {
+    _list.render(display);
+  }
+
+  void activate() override {
+    refreshContacts();
+    _list.setCount(_slot_count);
+    _list.reset();
+    if (_list.getCount() > 0)
+      _list.setSelected(0);
+  }
+
+  bool handleInput(char c) override {
+    if (_list.handleInput(c))
+      return true;
+
+    if (c != KEY_ENTER)
+      return false;
+
+    if (_list.getCount() == 0)
+      return true;
+
+    if (_list.getSelected() < _slot_count) {
+      _selected_contact = _slots[_list.getSelected()];
+    }
+    _text[0] = 0; // Reset buffer.
+    char title[48];
+    auto name = _model->getContactName(_selected_contact);
+    snprintf(title, sizeof(title), "Send to %s", name ? name : "Contact");
+    _model->promptText(title, _text, sizeof(_text), onContactText, this);
+    return true;
   }
 };
 

@@ -4,7 +4,9 @@
 #include <string.h>
 
 #include "../MyMesh.h"
+#include <helpers/AdvertDataHelpers.h>
 #include <helpers/ChannelDetails.h>
+#include <helpers/TxtDataHelpers.h>
 #include "screens.h"
 #include "target.h"
 
@@ -229,6 +231,72 @@ const char* UITask::getChannelName(uint8_t slot) {
 
   // TODO: may need special case for "Public"
   return details.name;
+}
+
+static bool getChatContactBySlot(uint8_t slot, ContactInfo& out) {
+  if (!the_mesh.getContactByIdx(slot, out))
+    return false;
+  return out.type == ADV_TYPE_CHAT;
+}
+
+uint8_t UITask::getContactSlots(uint8_t* slots, uint8_t max) {
+  if (!slots || max == 0)
+    return 0;
+
+  uint8_t count = 0;
+  auto total = the_mesh.getNumContacts();
+  for (uint32_t i = 0; i < static_cast<uint32_t>(total) && count < max; i++) {
+    ContactInfo contact{};
+    if (!the_mesh.getContactByIdx(i, contact))
+      continue;
+    if (contact.type != ADV_TYPE_CHAT)
+      continue;
+    slots[count++] = static_cast<uint8_t>(i);
+  }
+  return count;
+}
+
+const char* UITask::getContactName(uint8_t slot) {
+  static char name_buf[40];
+  ContactInfo contact{};
+  if (!getChatContactBySlot(slot, contact))
+    return nullptr;
+
+  if (contact.name[0]) {
+    StrHelper::strncpy(name_buf, contact.name, sizeof(name_buf));
+    return name_buf;
+  }
+
+  snprintf(
+    name_buf,
+    sizeof(name_buf),
+    "ID:%02X%02X%02X%02X%02X%02X",
+    contact.id.pub_key[0],
+    contact.id.pub_key[1],
+    contact.id.pub_key[2],
+    contact.id.pub_key[3],
+    contact.id.pub_key[4],
+    contact.id.pub_key[5]);
+  return name_buf;
+}
+
+bool UITask::sendContactMessage(uint8_t slot, const char* text) {
+  if (!text)
+    return false;
+
+  auto len = strlen(text);
+  if (len == 0)
+    return false;
+
+  ContactInfo contact{};
+  if (!getChatContactBySlot(slot, contact))
+    return false;
+
+  auto now = the_mesh.getRTCClock()->getCurrentTime();
+  uint32_t expected_ack = 0;
+  uint32_t est_timeout = 0;
+  auto result = the_mesh.sendMessage(contact, now, 0, text, expected_ack, est_timeout);
+  return result != MSG_SEND_FAILED;
 }
 
 uint32_t UITask::getBlePin() {
