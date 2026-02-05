@@ -34,9 +34,6 @@ class UITask : public AbstractUITask, public UIViewModel {
   //uint32_t _next_backlight_btn_check = 0;
 
   float _batt_percent = 0;
-
-  uint8_t _alert[80] = {};
-  uint32_t _msgcount = 0;
   MessageBuffer _message_buffer;
 
   UIScreen* _splash;
@@ -73,6 +70,7 @@ public:
 
   // UIViewModel impl
   uint32_t getMsgCount() override;
+  uint32_t getUnreadMsgCount() override;
   bool isConnected() override;
   bool isBuzzerEnabled() override;
   void prompt(

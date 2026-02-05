@@ -50,6 +50,7 @@ using TextInputCallback = void (*)(void* context, const char* text);
 class UIViewModel {
 public:
   virtual uint32_t getMsgCount() = 0;
+  virtual uint32_t getUnreadMsgCount() = 0;
   virtual bool isConnected() = 0;
   virtual bool isBuzzerEnabled() = 0;
   virtual void prompt(

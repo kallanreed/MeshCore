@@ -395,6 +395,15 @@ public:
       _entries[toIndex(i)].read = true;
     }
   }
+
+  uint8_t getUnreadCount() const {
+    uint8_t unread = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      if (!_entries[toIndex(i)].read)
+        unread++;
+    }
+    return unread;
+  }
 };
 
 // Interface type for pages hosted on the HomeScreen.
@@ -441,7 +450,7 @@ public:
     }
 
     display.setTextSize(3);
-    sprintf(_text, "MSG: %lu", _model->getMsgCount());
+    sprintf(_text, "Unread: %lu", _model->getUnreadMsgCount());
     display.drawTextCentered(center_x, 40, _text);
 
     display.setTextSize(2);

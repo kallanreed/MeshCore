@@ -248,9 +248,10 @@ void TextInputScreen::begin(
 int TextInputScreen::render(DisplayDriver& display) {
   display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
+  const int margin = 2;
 
   if (!_buffer || _capacity == 0) {
-    display.drawTextLeftAlign(0, 0, "No buffer");
+    display.drawTextLeftAlign(margin, margin, "No buffer");
     return 1000;
   }
 
@@ -261,10 +262,10 @@ int TextInputScreen::render(DisplayDriver& display) {
     display,
     _buffer,
     _length,
-    0,
-    0,
-    display.width(),
-    display.height(),
+    margin,
+    margin,
+    display.width() - (margin * 2),
+    display.height() - (margin * 2),
     line_height,
     _cursor,
     &cursor_x,
@@ -286,7 +287,7 @@ int TextInputScreen::render(DisplayDriver& display) {
   display.setTextSize(1);
   char counter[16];
   snprintf(counter, sizeof(counter), "%u/%u", _length, _capacity);
-  display.drawTextRightAlign(display.width() - 2, display.height() - 10, counter);
+  display.drawTextRightAlign(display.width() - margin, display.height() - margin - 8, counter);
 
   return 1000;
 }
