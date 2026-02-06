@@ -4,6 +4,7 @@
 #include <string.h>
 #include <helpers/ui/UIScreen.h>
 #include "icons.h"
+#include "keys.h"
 #include "ui_view_model.h"
 
 // A 7-segment display UI element.
@@ -166,23 +167,16 @@ public:
     if (!_active)
       return;
 
-    switch (c) {
-      case KEY_UP:
-        if (_count > 0)
-          _selected = (_selected + _count - 1) % _count;
-        break;
-      case KEY_DOWN:
-        if (_count > 0)
-          _selected = (_selected + 1) % _count;
-        break;
-      case KEY_ENTER:
-        finish(_selected);
-        break;
-      case KEY_CANCEL:
-        finish(-1);
-        break;
-      default:
-        break;
+    if (isKey(c, KeyCode::UP)) {
+      if (_count > 0)
+        _selected = (_selected + _count - 1) % _count;
+    } else if (isKey(c, KeyCode::DOWN)) {
+      if (_count > 0)
+        _selected = (_selected + 1) % _count;
+    } else if (isKey(c, KeyCode::ENTER)) {
+      finish(_selected);
+    } else if (isKey(c, KeyCode::ESC)) {
+      finish(-1);
     }
   }
 };
@@ -269,18 +263,18 @@ public:
     if (_count == 0)
       return false;
 
-    switch (c) {
-      case KEY_UP:
-        _selected = (_selected + _count - 1) % _count;
-        clampTop();
-        return true;
-      case KEY_DOWN:
-        _selected = (_selected + 1) % _count;
-        clampTop();
-        return true;
-      default:
-        return false;
+    bool handled = false;
+    if (isKey(c, KeyCode::UP)) {
+      _selected = (_selected + _count - 1) % _count;
+      clampTop();
+      handled = true;
+    } else if (isKey(c, KeyCode::DOWN)) {
+      _selected = (_selected + 1) % _count;
+      clampTop();
+      handled = true;
     }
+
+    return handled;
   }
 
   void render(DisplayDriver& display) {
@@ -485,7 +479,7 @@ public:
   }
 
   bool handleInput(char c) override {
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     static const char* options[] = { "Toggle Buzzer" };
@@ -561,7 +555,15 @@ public:
     if (_list.handleInput(c))
       return true;
 
-    if (c == KEY_ENTER) {
+    if (isKey(c, KeyCode::FN_ENTER)) {
+      auto count = static_cast<uint8_t>(_model->getMsgCount());
+      for (uint8_t offset = 0; offset < count; offset++) {
+        _model->markMessageRead(offset);
+      }
+      return true;
+    }
+
+    if (isKey(c, KeyCode::ENTER)) {
       if (_list.getCount() != 0)
         _model->gotoMsgViewer(_list.getSelected());
       return true;
@@ -639,7 +641,7 @@ public:
     if (_list.handleInput(c))
       return true;
 
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     if (_list.getCount() == 0)
@@ -722,7 +724,7 @@ public:
     if (_list.handleInput(c))
       return true;
 
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     if (_list.getCount() == 0)
@@ -805,7 +807,7 @@ public:
   }
 
   bool handleInput(char c) override {
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     static const char* options[] = { "Reset Stats", "Toggle BLE", "Send Advert" };
@@ -844,7 +846,7 @@ public:
   }
 
   bool handleInput(char c) override {
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     static const char* options[] = { "Enable", "Disable" };
@@ -959,7 +961,7 @@ public:
   }
 
   bool handleInput(char c) override {
-    if (c != KEY_ENTER)
+    if (!isKey(c, KeyCode::ENTER))
       return false;
 
     static const char* options[] = { "Yes", "No" };
