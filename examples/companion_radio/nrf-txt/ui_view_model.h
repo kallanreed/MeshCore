@@ -34,7 +34,7 @@ struct RadioDetails {
 
 constexpr uint8_t kMessageSenderSize = 24;
 constexpr uint8_t kMessageTextSize = 128;
-constexpr uint8_t kMessageBufferSize = 32;
+constexpr uint8_t kMessageBufferSize = 128;
 
 struct MessageEntry {
   bool read;
@@ -73,11 +73,14 @@ public:
   virtual bool sendContactMessage(uint8_t slot, const char* text) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
+  virtual bool isBleEnabled() = 0;
+  virtual void toggleBle() = 0;
   virtual void gotoHome() = 0;
   virtual void gotoMsgViewer(uint8_t offset) = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;
+  virtual bool sendAdvert() = 0;
   virtual void setGpsEnabled(bool enabled) = 0;
   virtual Position getPosition() = 0;
   virtual DateTime2 getDateTime() = 0;

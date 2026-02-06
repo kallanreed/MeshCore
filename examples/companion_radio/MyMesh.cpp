@@ -1507,6 +1507,11 @@ void MyMesh::handleCmdFrame(size_t len) {
     StrHelper::strncpy(channel.name, (char *)&cmd_frame[2], 32);
     memset(channel.channel.secret, 0, sizeof(channel.channel.secret));
     memcpy(channel.channel.secret, &cmd_frame[2 + 32], 16); // NOTE: only 128-bit supported
+    // Treat empty name as a "delete" and clear.
+    if (StrHelper::isBlank(channel.name)) {
+      memset(channel.name, 0, sizeof(channel.name));
+      memset(channel.channel.secret, 0, sizeof(channel.channel.secret));
+    }
     if (setChannel(channel_idx, channel)) {
       saveChannels();
       writeOKFrame();

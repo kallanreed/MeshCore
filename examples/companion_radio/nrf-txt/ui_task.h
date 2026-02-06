@@ -93,11 +93,14 @@ public:
   bool sendContactMessage(uint8_t slot, const char* text) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
+  bool isBleEnabled() override;
+  void toggleBle() override;
   void gotoHome() override { setCurrent(_home); }
   void gotoMsgViewer(uint8_t offset) override;
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
+  bool sendAdvert() override;
   void setGpsEnabled(bool enabled) override;
   Position getPosition() override;
   DateTime2 getDateTime() override;

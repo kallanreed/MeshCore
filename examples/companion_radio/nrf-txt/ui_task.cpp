@@ -303,6 +303,18 @@ uint32_t UITask::getBlePin() {
   return the_mesh.getBLEPin();
 }
 
+bool UITask::isBleEnabled() {
+  return isSerialEnabled();
+}
+
+void UITask::toggleBle() {
+  if (isSerialEnabled()) {
+    disableSerial();
+  } else {
+    enableSerial();
+  }
+}
+
 uint32_t UITask::getUptimeMin() {
   auto uptime_millis = millis() - _ui_started_at;
   return uptime_millis / 1000 / 60;
@@ -346,6 +358,11 @@ void UITask::toggleBuzzer() {
   the_mesh.savePrefs();
   //showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
   //_next_refresh = 0;
+}
+
+bool UITask::sendAdvert() {
+  notify(UIEventType::ack);
+  return the_mesh.advert();
 }
 
 void UITask::setGpsEnabled(bool enabled) {

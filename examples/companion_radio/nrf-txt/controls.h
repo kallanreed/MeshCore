@@ -434,6 +434,20 @@ public:
 class HomePage : public UIPage {
   char _text[24];
 
+  static void onOptionsSelected(void* context, int result) {
+    auto* model = static_cast<UIViewModel*>(context);
+    if (!model || result < 0)
+      return;
+
+    switch (result) {
+      case 0:
+        model->toggleBuzzer();
+        break;
+      default:
+        break;
+    }
+  }
+
 public:
   HomePage(UIViewModel* model) : UIPage(model) {}
 
@@ -469,7 +483,8 @@ public:
     if (c != KEY_ENTER)
       return false;
 
-    _model->toggleBuzzer();
+    static const char* options[] = { "Toggle Buzzer" };
+    _model->prompt("Options", options, 1, onOptionsSelected, _model);
     return true;
   }
 };
@@ -556,7 +571,7 @@ public:
   ScrollList _list = ScrollList(0, 0, 240, 116, 20);
   char _text[128] = {};
   uint8_t _selected_contact = 0;
-  uint8_t _slots[16] = {};
+  uint8_t _slots[MAX_CONTACTS] = {};
   uint8_t _slot_count = 0;
 
   static void onContactText(void* context, const char* text) {
@@ -641,7 +656,7 @@ class ChannelPage : public UIPage {
   ScrollList _list = ScrollList(0, 0, 240, 116, 20);
   char _text[128] = {};  // TODO: reuse across pages?
   uint8_t _selected_channel = 0;
-  uint8_t _slots[16] = {};
+  uint8_t _slots[MAX_GROUP_CHANNELS] = {};
   uint8_t _slot_count = 0;
 
   static void onChannelText(void* context, const char* text) {
@@ -725,6 +740,26 @@ class RadioPage : public UIPage {
 public:
   RadioPage(UIViewModel* model) : UIPage(model) {}
 
+  static void onOptionsSelected(void* context, int result) {
+    auto* model = static_cast<UIViewModel*>(context);
+    if (!model || result < 0)
+      return;
+
+    switch (result) {
+      case 0:
+        model->resetRadioStats();
+        break;
+      case 1:
+        model->toggleBle();
+        break;
+      case 2:
+        model->sendAdvert();
+        break;
+      default:
+        break;
+    }
+  }
+
   const uint8_t* getIcon() override {
     return icon_radio;
   }
@@ -732,6 +767,9 @@ public:
   void renderPreview(DisplayDriver& display) override {
     char tmp[40];
     auto details = _model->getRadioDetails();
+
+    if (_model->isBleEnabled())
+      display.drawXbm(222, 2, icon_ble_16, 16, 16);
 
     display.setTextSize(1);
     sprintf(tmp, "FQ: %06.3f", details.frequency);
@@ -765,7 +803,8 @@ public:
     if (c != KEY_ENTER)
       return false;
 
-    _model->resetRadioStats();
+    static const char* options[] = { "Reset Stats", "Toggle BLE", "Send Advert" };
+    _model->prompt("Radio Options", options, 3, onOptionsSelected, _model);
     return true;
   }
 };
