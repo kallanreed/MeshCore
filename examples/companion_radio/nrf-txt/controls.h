@@ -464,6 +464,11 @@ public:
     }
 
     display.setTextSize(3);
+    char name[32];
+    display.translateUTF8ToBlocks(name, _model->getNodeName(), sizeof(name));
+    display.drawTextCentered(center_x, 12, name);
+
+    display.setTextSize(3);
     sprintf(_text, "Unread: %lu", _model->getUnreadMsgCount());
     display.drawTextCentered(center_x, 40, _text);
 
@@ -900,6 +905,29 @@ public:
 
     sprintf(tmp, "%d/%d/%d", dt.month, dt.day, dt.year);
     display.drawTextCentered(center_x, 5, tmp);
+  }
+};
+
+class DebugPage : public UIPage {
+  uint8_t _last_key = 0;
+
+public:
+  DebugPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_shroom;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+    char tmp[8];
+    display.setTextSize(3);
+    sprintf(tmp, "0x%02X", _last_key);
+    display.drawTextCentered(display.width() / 2, 40, tmp);
+  }
+
+  bool handleInput(char c) override {
+    _last_key = static_cast<uint8_t>(c);
+    return false;
   }
 };
 

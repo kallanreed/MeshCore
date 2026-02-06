@@ -487,3 +487,7 @@ float UITask::getBatteryPercent() {
 
   return _batt_percent;
 }
+
+const char* UITask::getNodeName() {
+  return the_mesh.getNodeName();
+}

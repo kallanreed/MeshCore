@@ -91,4 +91,5 @@ public:
   virtual void markMessageRead(uint8_t offset) = 0;
   virtual const char* getFirmwareVersion() = 0;
   virtual float getBatteryPercent() = 0;
+  virtual const char* getNodeName() = 0;
 };

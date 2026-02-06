@@ -3,7 +3,8 @@
 static constexpr int kXOffset = 0;
 static constexpr int kYOffset = 0;
 
-static constexpr uint16_t LightColor = ST77XX_ORANGE;
+//static constexpr uint16_t LightColor = ST77XX_ORANGE;
+static constexpr uint16_t LightColor = ST77XX_WHITE;
 
 bool ST7789DisplayNrfTxt::begin() {
   if (!_isOn) {

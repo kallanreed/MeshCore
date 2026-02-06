@@ -5,13 +5,6 @@
 #include "controls.h"
 #include "ui_view_model.h"
 
-/*
-  UIScreen API
-  int render(DisplayDriver& display) override;
-  virtual bool handleInput(char c) { return false; }
-  virtual void poll() { }
-*/
-
 class SplashScreen : public UIScreen
 {
   UIViewModel* _model;
@@ -67,7 +60,7 @@ class HomeScreen : public UIScreen
 {
   UIViewModel* _model;
   uint8_t _page = 0;
-  std::array<UIPage*, 8> _pages;
+  std::array<UIPage*, 9> _pages;
   BatteryIndicator _batt = BatteryIndicator(205, 118);
 
   UIPage* current() { return _pages[_page]; }

@@ -110,4 +110,5 @@ public:
   void markMessageRead(uint8_t offset) override;
   const char* getFirmwareVersion() override;
   float getBatteryPercent() override;
+  const char* getNodeName() override;
 };
