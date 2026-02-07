@@ -77,9 +77,10 @@
 #define REQ_TYPE_GET_TELEMETRY_DATA     0x03
 
 struct AdvertPath {
-  uint8_t pubkey_prefix[7];
+  uint8_t pub_key[PUB_KEY_SIZE];
   uint8_t path_len;
   char    name[32];
+  uint8_t type;
   uint32_t recv_timestamp;
   uint8_t path[MAX_PATH_SIZE];
 };
@@ -101,6 +102,7 @@ public:
   void enterCLIRescue();
 
   int  getRecentlyHeard(AdvertPath dest[], int max_num);
+  bool addChatContactFromRecent(const uint8_t* pub_key, const char* name);
 
 protected:
   float getAirtimeBudgetFactor() const override;

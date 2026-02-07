@@ -155,7 +155,7 @@ void UITask::prompt(
   uint8_t count,
   PromptCallback callback,
   void* context) {
-  if (!callback || count == 0)
+  if (count == 0)
     return;
 
   _prompt.begin(title, items, count, callback, context);
@@ -470,6 +470,50 @@ uint8_t UITask::getMessages(uint8_t offset, uint8_t count, MessageEntry* out) {
 
 void UITask::markMessageRead(uint8_t offset) {
   _message_buffer.markRead(offset);
+}
+
+uint8_t UITask::getRecentAdverts(RecentAdvertEntry* out, uint8_t max) {
+  if (!out || max == 0)
+    return 0;
+
+  if (max > kRecentAdvertMax)
+    max = kRecentAdvertMax;
+
+  AdvertPath recent[kRecentAdvertMax] = {};
+  auto total = the_mesh.getRecentlyHeard(recent, max);
+  uint8_t count = 0;
+
+  for (int i = 0; i < total && count < max; i++) {
+    if (recent[i].type != ADV_TYPE_CHAT)
+      continue;
+    if (recent[i].name[0] == 0)
+      continue;
+
+    auto& entry = out[count++];
+    StrHelper::strncpy(entry.name, recent[i].name, sizeof(entry.name));
+    entry.recv_timestamp = recent[i].recv_timestamp;
+    memcpy(entry.pub_key, recent[i].pub_key, sizeof(entry.pub_key));
+  }
+
+  return count;
+}
+
+bool UITask::hasContact(const uint8_t* pub_key) {
+  if (!pub_key)
+    return false;
+
+  return the_mesh.lookupContactByPubKey(pub_key, PUB_KEY_SIZE) != nullptr;
+}
+
+bool UITask::addRecentAdvertContact(const RecentAdvertEntry& advert) {
+  if (advert.pub_key[0] == 0)
+    return false;
+
+  return the_mesh.addChatContactFromRecent(advert.pub_key, advert.name);
+}
+
+uint32_t UITask::getRtcSeconds() {
+  return the_mesh.getRTCClock()->getCurrentTime();
 }
 
 const char* UITask::getFirmwareVersion() {

@@ -340,7 +340,7 @@ void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
     AdvertPath* p = advert_paths;
     uint32_t oldest = 0xFFFFFFFF;
     for (int i = 0; i < ADVERT_PATH_TABLE_SIZE; i++) {   // check if already in table, otherwise evict oldest
-      if (memcmp(advert_paths[i].pubkey_prefix, contact.id.pub_key, sizeof(AdvertPath::pubkey_prefix)) == 0) {
+      if (memcmp(advert_paths[i].pub_key, contact.id.pub_key, PUB_KEY_SIZE) == 0) {
         p = &advert_paths[i];   // found
         break;
       }
@@ -350,8 +350,9 @@ void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
       }
     }
 
-    memcpy(p->pubkey_prefix, contact.id.pub_key, sizeof(p->pubkey_prefix));
+    memcpy(p->pub_key, contact.id.pub_key, PUB_KEY_SIZE);
     strcpy(p->name, contact.name);
+    p->type = contact.type;
     p->recv_timestamp = getRTCClock()->getCurrentTime();
     p->path_len = path_len;
     memcpy(p->path, path, p->path_len);
@@ -372,6 +373,39 @@ int MyMesh::getRecentlyHeard(AdvertPath dest[], int max_num) {
     dest[i] = advert_paths[i];
   }
   return max_num;
+}
+
+bool MyMesh::addChatContactFromRecent(const uint8_t* pub_key, const char* name) {
+  if (!pub_key)
+    return false;
+
+  if (lookupContactByPubKey(pub_key, PUB_KEY_SIZE))
+    return false;
+
+  ContactInfo ci{};
+  memcpy(ci.id.pub_key, pub_key, PUB_KEY_SIZE);
+  if (name && name[0]) {
+    StrHelper::strncpy(ci.name, name, sizeof(ci.name));
+  } else {
+    ci.name[0] = 0;
+  }
+  auto now = getRTCClock()->getCurrentTime();
+
+  ci.type = ADV_TYPE_CHAT;
+  ci.flags = 0;
+  ci.out_path_len = -1;
+  ci.shared_secret_valid = false;
+  ci.last_advert_timestamp = now;
+  ci.lastmod = now;
+  ci.gps_lat = 0;
+  ci.gps_lon = 0;
+  ci.sync_since = 0;
+
+  if (!addContact(ci))
+    return false;
+
+  dirty_contacts_expiry = futureMillis(LAZY_CONTACTS_WRITE_DELAY);
+  return true;
 }
 
 void MyMesh::onContactPathUpdated(const ContactInfo &contact) {
@@ -1636,7 +1670,7 @@ void MyMesh::handleCmdFrame(size_t len) {
     AdvertPath* found = NULL;
     for (int i = 0; i < ADVERT_PATH_TABLE_SIZE; i++) {
       auto p = &advert_paths[i];
-      if (memcmp(p->pubkey_prefix, pub_key, sizeof(p->pubkey_prefix)) == 0) {
+      if (memcmp(p->pub_key, pub_key, PUB_KEY_SIZE) == 0) {
         found = p;
         break;
       }

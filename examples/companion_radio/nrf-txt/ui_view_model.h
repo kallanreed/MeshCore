@@ -35,12 +35,21 @@ struct RadioDetails {
 constexpr uint8_t kMessageSenderSize = 24;
 constexpr uint8_t kMessageTextSize = 128;
 constexpr uint8_t kMessageBufferSize = 128;
+constexpr uint8_t kRecentAdvertNameSize = 32;
+constexpr uint8_t kRecentAdvertMax = 8;
+constexpr uint8_t kRecentAdvertKeySize = 32; // PUB_KEY_SIZE
 
 struct MessageEntry {
   bool read;
   uint32_t timestamp_ms;
   char sender[kMessageSenderSize];
   char message[kMessageTextSize];
+};
+
+struct RecentAdvertEntry {
+  char name[kRecentAdvertNameSize];
+  uint32_t recv_timestamp;
+  uint8_t pub_key[kRecentAdvertKeySize];
 };
 
 using PromptCallback = void (*)(void* context, int result);
@@ -89,6 +98,10 @@ public:
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
   virtual void markMessageRead(uint8_t offset) = 0;
+  virtual uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) = 0;
+  virtual bool hasContact(const uint8_t* pub_key) = 0;
+  virtual bool addRecentAdvertContact(const RecentAdvertEntry& advert) = 0;
+  virtual uint32_t getRtcSeconds() = 0;
   virtual const char* getFirmwareVersion() = 0;
   virtual float getBatteryPercent() = 0;
   virtual const char* getNodeName() = 0;

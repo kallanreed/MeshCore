@@ -108,6 +108,10 @@ public:
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
+  uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) override;
+  bool hasContact(const uint8_t* pub_key) override;
+  bool addRecentAdvertContact(const RecentAdvertEntry& advert) override;
+  uint32_t getRtcSeconds() override;
   const char* getFirmwareVersion() override;
   float getBatteryPercent() override;
   const char* getNodeName() override;

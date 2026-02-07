@@ -1,25 +1,11 @@
 #include "screens.h"
 #include "../MyMesh.h"
+#include "shared.h"
 #include "ui_task.h"
 #include <stdio.h>
 #include <string.h>
 
 namespace {
-void formatAge(char* out, size_t size, uint32_t timestamp_ms) {
-  uint32_t age_ms = millis() - timestamp_ms;
-  uint32_t age_sec = age_ms / 1000;
-
-  if (age_sec < 60) {
-    snprintf(out, size, "%lus", static_cast<unsigned long>(age_sec));
-  } else if (age_sec < 60 * 60) {
-    snprintf(out, size, "%lum", static_cast<unsigned long>(age_sec / 60));
-  } else if (age_sec < 60 * 60 * 24) {
-    snprintf(out, size, "%luh", static_cast<unsigned long>(age_sec / (60 * 60)));
-  } else {
-    snprintf(out, size, "%lud", static_cast<unsigned long>(age_sec / (60 * 60 * 24)));
-  }
-}
-
 uint8_t safeStrLen(const char* text, uint8_t max_len) {
   if (!text)
     return 0;
@@ -179,7 +165,7 @@ int MsgViewer::render(DisplayDriver& display) {
   display.drawTextLeftAlign(2, 2, sender);
 
   char age[12];
-  formatAge(age, sizeof(age), _message.timestamp_ms);
+  formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
   display.drawTextRightAlign(display.width() - 2, 2, age);
 
   display.drawRect(0, 20, display.width(), 1);
@@ -373,24 +359,24 @@ extern UITask ui_task;
 static UIViewModel* view_model = &ui_task;
 static HomePage home_page = HomePage(view_model);
 static MsgPage msg_page = MsgPage(view_model);
+static AdvertPage advert_page = AdvertPage(view_model);
 static ContactPage contact_page = ContactPage(view_model);
 static ChannelPage channel_page = ChannelPage(view_model);
 static RadioPage radio_page = RadioPage(view_model);
 static GpsPage gps_page = GpsPage(view_model);
 static ClockPage clock_page = ClockPage(view_model);
-static DebugPage debug_page = DebugPage(view_model);
 static PowerPage power_page = PowerPage(view_model);
 
 // --- HomeScreen ---
 HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[0] = &home_page;
   _pages[1] = &msg_page;
-  _pages[2] = &contact_page;
-  _pages[3] = &channel_page;
-  _pages[4] = &radio_page;
-  _pages[5] = &gps_page;
-  _pages[6] = &clock_page;
-  _pages[7] = &debug_page;
+  _pages[2] = &advert_page;
+  _pages[3] = &contact_page;
+  _pages[4] = &channel_page;
+  _pages[5] = &radio_page;
+  _pages[6] = &gps_page;
+  _pages[7] = &clock_page;
   _pages[8] = &power_page;
 
   current()->activate();

@@ -5,6 +5,7 @@
 #include <helpers/ui/UIScreen.h>
 #include "icons.h"
 #include "keys.h"
+#include "shared.h"
 #include "ui_view_model.h"
 
 // A 7-segment display UI element.
@@ -570,6 +571,119 @@ public:
     }
 
     return false;
+  }
+};
+
+class AdvertPage : public UIPage {
+  ScrollList _list = ScrollList(0, 0, 240, 116, 20);
+  RecentAdvertEntry _entries[kRecentAdvertMax] = {};
+  uint8_t _count = 0;
+  RecentAdvertEntry _pending_entry = {};
+
+  void refresh() {
+    auto selected = _list.getSelected();
+    _count = _model->getRecentAdverts(_entries, kRecentAdvertMax);
+    _list.setCount(_count);
+    if (_count == 0) {
+      _list.reset();
+      return;
+    }
+
+    if (selected < _count) {
+      _list.setSelected(selected);
+    } else {
+      _list.setSelected(static_cast<uint8_t>(_count - 1));
+    }
+  }
+
+  static void onAddPrompt(void* context, int result) {
+    auto* page = static_cast<AdvertPage*>(context);
+    if (!page)
+      return;
+
+    if (result == 0) {
+      if (!page->_model->addRecentAdvertContact(page->_pending_entry)) {
+        static const char* options[] = { "OK" };
+        page->_model->prompt("Add Failed", options, 1, nullptr, nullptr);
+      }
+    }
+  }
+
+  static void renderAdvertItem(
+    DisplayDriver& display,
+    uint8_t index,
+    int x,
+    int y,
+    int w,
+    int h,
+    void* context) {
+    auto* page = static_cast<AdvertPage*>(context);
+    if (!page || index >= page->_count)
+      return;
+
+    auto& entry = page->_entries[index];
+    char name[kRecentAdvertNameSize];
+    char age[12];
+    display.translateUTF8ToBlocks(name, entry.name, sizeof(name));
+    uint32_t now = page->_model->getRtcSeconds();
+    uint32_t age_sec = now >= entry.recv_timestamp ? (now - entry.recv_timestamp) : 0;
+    formatAgeSeconds(age, sizeof(age), age_sec);
+
+    display.setTextSize(2);
+    int age_width = display.getTextWidth(age);
+    int max_name_width = w - age_width - 2;
+    if (max_name_width < 0)
+      max_name_width = 0;
+    display.drawTextEllipsized(x, y, max_name_width, name);
+    display.drawTextRightAlign(x + w - 1, y, age);
+  }
+
+public:
+  AdvertPage(UIViewModel* model) : UIPage(model) {
+    _list.setRenderer(renderAdvertItem, this);
+  }
+
+  const uint8_t* getIcon() override {
+    return icon_recent;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+    refresh();
+    _list.render(display);
+  }
+
+  void activate() override {
+    refresh();
+    _list.reset();
+    if (_count > 0)
+      _list.setSelected(0);
+  }
+
+  bool handleInput(char c) override {
+    if (_list.handleInput(c))
+      return true;
+
+    if (!isKey(c, KeyCode::ENTER))
+      return false;
+
+    if (_count == 0)
+      return true;
+
+    auto selected = _list.getSelected();
+    if (selected >= _count)
+      return true;
+
+    auto& entry = _entries[selected];
+    if (_model->hasContact(entry.pub_key)) {
+      static const char* options[] = { "OK" };
+      _model->prompt("Already Added", options, 1, nullptr, nullptr);
+      return true;
+    }
+
+    _pending_entry = entry;
+    static const char* options[] = { "Add", "Cancel" };
+    _model->prompt("Add Contact?", options, 2, onAddPrompt, this);
+    return true;
   }
 };
 
