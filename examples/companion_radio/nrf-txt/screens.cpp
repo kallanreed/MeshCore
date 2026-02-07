@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "../MyMesh.h"
+#include "keys.h"
 #include "shared.h"
 #include "ui_task.h"
 #include <stdio.h>
@@ -179,20 +180,20 @@ int MsgViewer::render(DisplayDriver& display) {
 }
 
 bool MsgViewer::handleInput(char c) {
-  if (c == KEY_CANCEL || c == KEY_ENTER) {
-    _model->gotoHome();
+  if (isKey(c, KeyCode::ESC) || isKey(c, KeyCode::ENTER)) {
+    _model->gotoPrevious();
     return true;
   }
 
   bool handled = false;
 
-  if (c == KEY_UP) {
+  if (isKey(c, KeyCode::UP)) {
     if (_offset > 0) {
       _offset--;
       loadMessage();
       handled = true;
     }
-  } else if (c == KEY_DOWN) {
+  } else if (isKey(c, KeyCode::DOWN)) {
     auto count = _model->getMsgCount();
     if (_offset + 1 < count) {
       _offset++;
@@ -205,6 +206,118 @@ bool MsgViewer::handleInput(char c) {
     _model->renderAfter(0);
 
   return handled;
+}
+
+// --- ThreadScreen ---
+ThreadScreen::ThreadScreen(UIViewModel* model) : _model(model) {
+  _list.setModel(model);
+}
+
+void ThreadScreen::onThreadText(void* context, const char* text) {
+  auto* screen = static_cast<ThreadScreen*>(context);
+  if (!screen || !text)
+    return;
+
+  if (screen->_is_contact) {
+    screen->_model->sendContactMessage(screen->_target, text);
+  } else {
+    screen->_model->sendChannelMessage(screen->_target, text);
+  }
+}
+
+void ThreadScreen::setContact(uint8_t contact_index) {
+  _is_contact = true;
+  _target = contact_index;
+  _list.setContact(contact_index);
+  auto name = _model->getContactName(contact_index);
+  snprintf(_title, sizeof(_title), "Contact: %s", name ? name : "Contact");
+}
+
+void ThreadScreen::setChannel(uint8_t channel_index) {
+  _is_contact = false;
+  _target = channel_index;
+  _list.setChannel(channel_index);
+  auto name = _model->getChannelName(channel_index);
+  snprintf(_title, sizeof(_title), "Channel: %s", name ? name : "Channel");
+}
+
+void ThreadScreen::refresh() {
+  _list.refresh();
+  _list.reset();
+  auto count = _list.getCount();
+  bool found_unread = _list.selectFirstUnread();
+  if (!found_unread && count > 0)
+    _list.setSelected(static_cast<uint8_t>(count - 1));
+}
+
+void ThreadScreen::activate() {
+  refresh();
+}
+
+int ThreadScreen::render(DisplayDriver& display) {
+  display.setTextSize(2);
+  display.setColor(DisplayDriver::LIGHT);
+  display.drawTextLeftAlign(2, 2, _title);
+  display.drawRect(0, 20, display.width(), 1);
+  if (_list.getCount() == 0) {
+    display.drawTextCentered(display.width() / 2, 60, "No messages");
+  } else {
+    _list.render(display);
+  }
+  return 1000;
+}
+
+bool ThreadScreen::handleInput(char c) {
+  if (isKey(c, KeyCode::ESC)) {
+    _model->gotoHome();
+    return true;
+  }
+
+  if (isKey(c, KeyCode::FN_ENTER)) {
+    _text[0] = 0;
+    char title[48];
+    if (_is_contact) {
+      auto name = _model->getContactName(_target);
+      snprintf(title, sizeof(title), "Send to %s", name ? name : "Contact");
+    } else {
+      auto name = _model->getChannelName(_target);
+      snprintf(title, sizeof(title), "Send to %s", name ? name : "Channel");
+    }
+    _model->promptText(title, _text, sizeof(_text), onThreadText, this);
+    return true;
+  }
+
+  if (isKey(c, KeyCode::FN_R)) {
+    if (_is_contact) {
+      _model->markMessagesReadForContact(_target);
+    } else {
+      _model->markMessagesReadForChannel(_target);
+    }
+    _model->renderAfter(0);
+    return true;
+  }
+
+  if (isKey(c, KeyCode::ENTER)) {
+    uint8_t global_offset = 0;
+    auto selected = _list.getSelected();
+    bool found = false;
+    if (_is_contact) {
+      found = _model->getGlobalOffsetForContact(_target, selected, &global_offset);
+    } else {
+      found = _model->getGlobalOffsetForChannel(_target, selected, &global_offset);
+    }
+    if (found) {
+      _model->gotoMsgViewer(global_offset);
+    }
+    return true;
+  }
+
+  if (_list.handleInput(c)) {
+    _model->renderAfter(0);
+    return true;
+  }
+
+  return false;
 }
 
 // --- TextInputScreen ---
@@ -300,28 +413,26 @@ bool TextInputScreen::handleInput(char c) {
   if (!_buffer || _capacity == 0)
     return false;
 
-  if (c == KEY_CANCEL) {
-    _model->gotoHome();
+  if (isKey(c, KeyCode::ESC)) {
+    _model->gotoPrevious();
     return true;
   }
 
   bool handled = false;
 
-  if (c == KEY_LEFT) {
-    if (_cursor > 0) {
+  if (isKey(c, KeyCode::LEFT)) {
+    if (_cursor > 0)
       _cursor--;
-    }
     handled = true;
-  } else if (c == KEY_RIGHT) {
-    if (_cursor < _length) {
+  } else if (isKey(c, KeyCode::RIGHT)) {
+    if (_cursor < _length)
       _cursor++;
-    }
     handled = true;
-  } else if (c == KEY_ENTER) {
+  } else if (isKey(c, KeyCode::ENTER)) {
     _buffer[_length] = 0;
     if (_callback)
       _callback(_context, _buffer);
-    _model->gotoHome();
+    _model->gotoPrevious();
     return true;
   } else if (c == 8 || c == 127) {
     if (_cursor == 0)
@@ -358,7 +469,6 @@ bool TextInputScreen::handleInput(char c) {
 extern UITask ui_task;
 static UIViewModel* view_model = &ui_task;
 static HomePage home_page = HomePage(view_model);
-static MsgPage msg_page = MsgPage(view_model);
 static AdvertPage advert_page = AdvertPage(view_model);
 static ContactPage contact_page = ContactPage(view_model);
 static ChannelPage channel_page = ChannelPage(view_model);
@@ -370,14 +480,13 @@ static PowerPage power_page = PowerPage(view_model);
 // --- HomeScreen ---
 HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[0] = &home_page;
-  _pages[1] = &msg_page;
-  _pages[2] = &advert_page;
-  _pages[3] = &contact_page;
-  _pages[4] = &channel_page;
-  _pages[5] = &radio_page;
-  _pages[6] = &gps_page;
-  _pages[7] = &clock_page;
-  _pages[8] = &power_page;
+  _pages[1] = &contact_page;
+  _pages[2] = &channel_page;
+  _pages[3] = &advert_page;
+  _pages[4] = &radio_page;
+  _pages[5] = &gps_page;
+  _pages[6] = &clock_page;
+  _pages[7] = &power_page;
 
   current()->activate();
 }
@@ -408,11 +517,11 @@ bool HomeScreen::handleInput(char c) {
   bool handled = current()->handleInput(c);
 
   if (!handled) {
-    if (c == KEY_LEFT) {
+    if (isKey(c, KeyCode::LEFT)) {
       _page = (_pages.size() + _page - 1) % _pages.size();
       current()->activate();
       handled = true;
-    } else if (c == KEY_RIGHT) {
+    } else if (isKey(c, KeyCode::RIGHT)) {
       _page = (_page + 1) % _pages.size();
       current()->activate();
       handled = true;

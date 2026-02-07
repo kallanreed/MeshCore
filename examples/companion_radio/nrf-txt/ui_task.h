@@ -39,8 +39,10 @@ class UITask : public AbstractUITask, public UIViewModel {
   UIScreen* _splash;
   UIScreen* _home;
   UIScreen* _msg_viewer;
+  UIScreen* _thread_viewer;
   UIScreen* _text_input;
   UIScreen* _curr;
+  UIScreen* _prev_screen;
   MenuPrompt _prompt;
 
   void dispatchRender();
@@ -59,12 +61,13 @@ public:
     NodePrefs* node_prefs);
 
   // AbstractUITask impl
-  void msgRead(int msgcount) override;
+  void msgRead(int msgcount) override { }
   void newMsg(
     uint8_t path_len,
     const char* from_name,
     const char* text,
-    int msgcount) override;
+    int msgcount,
+    const UIMessageMeta& meta) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
 
@@ -86,16 +89,43 @@ public:
     TextInputCallback callback,
     void* context) override;
   bool sendChannelMessage(uint8_t channel_index, const char* text) override;
-  uint8_t getChannelSlots(uint8_t* slots, uint8_t max) override;
-  const char* getChannelName(uint8_t slot) override;
-  uint8_t getContactSlots(uint8_t* slots, uint8_t max) override;
-  const char* getContactName(uint8_t slot) override;
-  bool sendContactMessage(uint8_t slot, const char* text) override;
+  uint8_t getChannelIndexes(uint8_t* indexes, uint8_t max) override;
+  const char* getChannelName(uint8_t channel_index) override;
+  uint8_t getMsgCountForChannel(uint8_t channel_index) override;
+  uint8_t getUnreadCountForChannel(uint8_t channel_index) override;
+  uint8_t getMessagesForChannel(
+    uint8_t channel_index,
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out) override;
+  bool getGlobalOffsetForChannel(
+    uint8_t channel_index,
+    uint8_t filtered_offset,
+    uint8_t* out_global) override;
+  void markMessagesReadForChannel(uint8_t channel_index) override;
+  void gotoChannelThread(uint8_t channel_index) override;
+  uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) override;
+  const char* getContactName(uint8_t contact_index) override;
+  bool sendContactMessage(uint8_t contact_index, const char* text) override;
+  uint8_t getMsgCountForContact(uint8_t contact_index) override;
+  uint8_t getUnreadCountForContact(uint8_t contact_index) override;
+  uint8_t getMessagesForContact(
+    uint8_t contact_index,
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out) override;
+  bool getGlobalOffsetForContact(
+    uint8_t contact_index,
+    uint8_t filtered_offset,
+    uint8_t* out_global) override;
+  void markMessagesReadForContact(uint8_t contact_index) override;
+  void gotoContactThread(uint8_t contact_index) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
   bool isBleEnabled() override;
   void toggleBle() override;
-  void gotoHome() override { setCurrent(_home); }
+  void gotoHome() override;
+  void gotoPrevious() override;
   void gotoMsgViewer(uint8_t offset) override;
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;

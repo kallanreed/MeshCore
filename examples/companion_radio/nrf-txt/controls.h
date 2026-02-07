@@ -337,13 +337,38 @@ class MessageBuffer {
     return (oldest + offset) % kMessageBufferSize;
   }
 
+  bool matchesContact(const MessageEntry& entry, const uint8_t* prefix) const {
+    if (!prefix || entry.kind != MessageKind::contact)
+      return false;
+    return memcmp(entry.contact_prefix, prefix, sizeof(entry.contact_prefix)) == 0;
+  }
+
+  bool matchesChannel(const MessageEntry& entry, uint8_t channel_index) const {
+    return entry.kind == MessageKind::channel && entry.channel_index == channel_index;
+  }
+
 public:
   uint8_t getCount() const { return _count; }
 
-  void addMessage(uint32_t timestamp_ms, const char* sender, const char* message) {
+  uint8_t addMessage(
+    uint32_t timestamp_ms,
+    const char* sender,
+    const char* message,
+    MessageKind kind,
+    const uint8_t* contact_prefix,
+    uint8_t channel_index,
+    MessageDirection direction) {
     auto* entry = &_entries[_head];
-    entry->read = false;
+    entry->read = direction == MessageDirection::outgoing;
     entry->timestamp_ms = timestamp_ms;
+    entry->kind = kind;
+    entry->direction = direction;
+    entry->channel_index = channel_index;
+    if (contact_prefix) {
+      memcpy(entry->contact_prefix, contact_prefix, sizeof(entry->contact_prefix));
+    } else {
+      memset(entry->contact_prefix, 0, sizeof(entry->contact_prefix));
+    }
 
     if (sender) {
       strncpy(entry->sender, sender, sizeof(entry->sender));
@@ -362,6 +387,7 @@ public:
     _head = (_head + 1) % kMessageBufferSize;
     if (_count < kMessageBufferSize)
       _count++;
+    return _count == 0 ? 0 : static_cast<uint8_t>(_count - 1);
   }
 
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) const {
@@ -398,6 +424,300 @@ public:
         unread++;
     }
     return unread;
+  }
+
+  uint8_t getCountForContact(const uint8_t* prefix) const {
+    if (!prefix)
+      return 0;
+    uint8_t total = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      if (matchesContact(_entries[toIndex(i)], prefix))
+        total++;
+    }
+    return total;
+  }
+
+  uint8_t getCountForChannel(uint8_t channel_index) const {
+    uint8_t total = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      if (matchesChannel(_entries[toIndex(i)], channel_index))
+        total++;
+    }
+    return total;
+  }
+
+  uint8_t getUnreadCountForContact(const uint8_t* prefix) const {
+    if (!prefix)
+      return 0;
+    uint8_t unread = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (matchesContact(entry, prefix) && !entry.read)
+        unread++;
+    }
+    return unread;
+  }
+
+  uint8_t getUnreadCountForChannel(uint8_t channel_index) const {
+    uint8_t unread = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (matchesChannel(entry, channel_index) && !entry.read)
+        unread++;
+    }
+    return unread;
+  }
+
+  uint8_t getMessagesForContact(
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out,
+    const uint8_t* prefix) const {
+    if (!out || count == 0 || !prefix)
+      return 0;
+
+    uint8_t matched = 0;
+    uint8_t copied = 0;
+    for (uint8_t i = 0; i < _count && copied < count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (!matchesContact(entry, prefix))
+        continue;
+
+      if (matched >= offset) {
+        out[copied++] = entry;
+      }
+      matched++;
+    }
+    return copied;
+  }
+
+  uint8_t getMessagesForChannel(
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out,
+    uint8_t channel_index) const {
+    if (!out || count == 0)
+      return 0;
+
+    uint8_t matched = 0;
+    uint8_t copied = 0;
+    for (uint8_t i = 0; i < _count && copied < count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (!matchesChannel(entry, channel_index))
+        continue;
+
+      if (matched >= offset) {
+        out[copied++] = entry;
+      }
+      matched++;
+    }
+    return copied;
+  }
+
+  bool getGlobalOffsetForContact(uint8_t filtered_offset, const uint8_t* prefix, uint8_t* out_global) const {
+    if (!prefix || !out_global)
+      return false;
+
+    uint8_t matched = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (!matchesContact(entry, prefix))
+        continue;
+      if (matched == filtered_offset) {
+        *out_global = i;
+        return true;
+      }
+      matched++;
+    }
+    return false;
+  }
+
+  bool getGlobalOffsetForChannel(uint8_t filtered_offset, uint8_t channel_index, uint8_t* out_global) const {
+    if (!out_global)
+      return false;
+
+    uint8_t matched = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (!matchesChannel(entry, channel_index))
+        continue;
+      if (matched == filtered_offset) {
+        *out_global = i;
+        return true;
+      }
+      matched++;
+    }
+    return false;
+  }
+
+  void markReadForContact(uint8_t offset, const uint8_t* prefix) {
+    if (!prefix)
+      return;
+
+    uint8_t matched = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto idx = toIndex(i);
+      if (!matchesContact(_entries[idx], prefix))
+        continue;
+      if (matched == offset) {
+        _entries[idx].read = true;
+        return;
+      }
+      matched++;
+    }
+  }
+
+  void markReadForChannel(uint8_t offset, uint8_t channel_index) {
+    uint8_t matched = 0;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto idx = toIndex(i);
+      if (!matchesChannel(_entries[idx], channel_index))
+        continue;
+      if (matched == offset) {
+        _entries[idx].read = true;
+        return;
+      }
+      matched++;
+    }
+  }
+
+  void markAllReadForContact(const uint8_t* prefix) {
+    if (!prefix)
+      return;
+    for (uint8_t i = 0; i < _count; i++) {
+      auto idx = toIndex(i);
+      if (matchesContact(_entries[idx], prefix))
+        _entries[idx].read = true;
+    }
+  }
+
+  void markAllReadForChannel(uint8_t channel_index) {
+    for (uint8_t i = 0; i < _count; i++) {
+      auto idx = toIndex(i);
+      if (matchesChannel(_entries[idx], channel_index))
+        _entries[idx].read = true;
+    }
+  }
+};
+
+enum class MessageListMode : uint8_t {
+  all,
+  contact,
+  channel
+};
+
+class MessageList {
+  ScrollList _list;
+  UIViewModel* _model = nullptr;
+  MessageListMode _mode = MessageListMode::all;
+  uint8_t _target = 0;
+
+  uint8_t getTotalCount() const {
+    if (!_model)
+      return 0;
+    switch (_mode) {
+      case MessageListMode::contact:
+        return _model->getMsgCountForContact(_target);
+      case MessageListMode::channel:
+        return _model->getMsgCountForChannel(_target);
+      case MessageListMode::all:
+      default:
+        return static_cast<uint8_t>(_model->getMsgCount());
+    }
+  }
+
+  bool getMessage(uint8_t index, MessageEntry& out) const {
+    if (!_model)
+      return false;
+    switch (_mode) {
+      case MessageListMode::contact:
+        return _model->getMessagesForContact(_target, index, 1, &out) == 1;
+      case MessageListMode::channel:
+        return _model->getMessagesForChannel(_target, index, 1, &out) == 1;
+      case MessageListMode::all:
+      default:
+        return _model->getMessages(index, 1, &out) == 1;
+    }
+  }
+
+  static void renderMessageItem(
+    DisplayDriver& display,
+    uint8_t index,
+    int x,
+    int y,
+    int w,
+    int h,
+    void* context) {
+    auto* list = static_cast<MessageList*>(context);
+    if (!list)
+      return;
+
+    MessageEntry entry{};
+    if (!list->getMessage(index, entry))
+      return;
+
+    char tmp[kMessageTextSize + 4];
+    if (entry.direction == MessageDirection::outgoing) {
+      snprintf(tmp, sizeof(tmp), "> %s", entry.message);
+    } else {
+      snprintf(tmp, sizeof(tmp), "%s", entry.message);
+    }
+
+    char message[kMessageTextSize + 4];
+    display.translateUTF8ToBlocks(message, tmp, sizeof(message));
+
+    display.setTextSize(2);
+    if (!entry.read)
+      display.fillRect(x, y + 9, 3, 3);
+
+    display.drawTextLeftAlign(x + 6, y, message);
+  }
+
+public:
+  MessageList(int x, int y, int w, int h, uint8_t row_h)
+    : _list(x, y, w, h, row_h) {
+    _list.setRenderer(renderMessageItem, this);
+  }
+
+  void setModel(UIViewModel* model) { _model = model; }
+
+  void setModeAll() { _mode = MessageListMode::all; }
+  void setContact(uint8_t contact_index) {
+    _mode = MessageListMode::contact;
+    _target = contact_index;
+  }
+  void setChannel(uint8_t channel_index) {
+    _mode = MessageListMode::channel;
+    _target = channel_index;
+  }
+
+  void refresh() {
+    _list.setCount(getTotalCount());
+    if (_list.getCount() == 0)
+      _list.reset();
+  }
+
+  void reset() { _list.reset(); }
+  void setSelected(uint8_t selected) { _list.setSelected(selected); }
+  uint8_t getSelected() const { return _list.getSelected(); }
+  uint8_t getCount() { return _list.getCount(); }
+
+  bool handleInput(char c) { return _list.handleInput(c); }
+
+  void render(DisplayDriver& display) { _list.render(display); }
+
+  bool selectFirstUnread() {
+    auto count = getTotalCount();
+    for (uint8_t offset = 0; offset < count; offset++) {
+      MessageEntry entry{};
+      if (!getMessage(offset, entry))
+        continue;
+      if (!entry.read) {
+        _list.setSelected(offset);
+        return true;
+      }
+    }
+    return false;
   }
 };
 
@@ -490,36 +810,12 @@ public:
 };
 
 class MsgPage : public UIPage {
-  ScrollList _list = ScrollList(0, 0, 240, 116, 20);
-
-  static void renderMessageItem(
-    DisplayDriver& display,
-    uint8_t index,
-    int x,
-    int y,
-    int w,
-    int h,
-    void* context) {
-    auto* page = static_cast<MsgPage*>(context);
-    MessageEntry entry{};
-    if (page->_model->getMessages(index, 1, &entry) == 0)
-      return;
-
-    char sender[kMessageSenderSize];
-    char message[kMessageTextSize];
-    display.translateUTF8ToBlocks(sender, entry.sender, sizeof(sender));
-    display.translateUTF8ToBlocks(message, entry.message, sizeof(message));
-
-    display.setTextSize(2);
-    if (!entry.read)
-      display.fillRect(x, y + 9, 3, 3);
-
-    display.drawTextLeftAlign(x + 6, y, message);
-  }
+  MessageList _list = MessageList(0, 0, 240, 116, 20);
 
 public:
   MsgPage(UIViewModel* model) : UIPage(model) {
-    _list.setRenderer(renderMessageItem, this);
+    _list.setModel(model);
+    _list.setModeAll();
   }
 
   const uint8_t* getIcon() override {
@@ -527,27 +823,17 @@ public:
   }
 
   void renderPreview(DisplayDriver& display) override {
-    _list.setCount(static_cast<uint8_t>(_model->getMsgCount()));
+    _list.setModeAll();
+    _list.refresh();
     _list.render(display);
   }
 
   void activate() override {
-    _list.setCount(static_cast<uint8_t>(_model->getMsgCount()));
+    _list.setModeAll();
+    _list.refresh();
     _list.reset();
     auto count = _list.getCount();
-    bool found_unread = false;
-    for (uint8_t offset = 0; offset < count; offset++) {
-      MessageEntry entry{};
-      if (_model->getMessages(offset, 1, &entry) == 0)
-        continue;
-
-      if (!entry.read) {
-        _list.setSelected(offset);
-        found_unread = true;
-        break;
-      }
-    }
-
+    bool found_unread = _list.selectFirstUnread();
     if (!found_unread && count > 0)
       _list.setSelected(static_cast<uint8_t>(count - 1));
   }
@@ -690,21 +976,12 @@ public:
 class ContactPage : public UIPage {
 public:
   ScrollList _list = ScrollList(0, 0, 240, 116, 20);
-  char _text[128] = {};
-  uint8_t _selected_contact = 0;
-  uint8_t _slots[MAX_CONTACTS] = {};
-  uint8_t _slot_count = 0;
-
-  static void onContactText(void* context, const char* text) {
-    auto* page = static_cast<ContactPage*>(context);
-    if (!page)
-      return;
-
-    page->_model->sendContactMessage(page->_selected_contact, text);
-  }
+  uint8_t _selected_contact_index = 0;
+  uint8_t _indexes[MAX_CONTACTS] = {}; // contact indexes for UI rows
+  uint8_t _index_count = 0;
 
   void refreshContacts() {
-    _slot_count = _model->getContactSlots(_slots, sizeof(_slots));
+    _index_count = _model->getContactIndexes(_indexes, sizeof(_indexes));
   }
 
   static void renderContactItem(
@@ -719,15 +996,17 @@ public:
     if (!page)
       return;
 
-    if (index >= page->_slot_count)
+    if (index >= page->_index_count)
       return;
 
-    auto slot = page->_slots[index];
-    auto name = page->_model->getContactName(slot);
+    auto contact_index = page->_indexes[index];
+    auto name = page->_model->getContactName(contact_index);
     if (!name)
       return;
 
     display.setTextSize(2);
+    if (page->_model->getUnreadCountForContact(contact_index) > 0)
+      display.fillRect(x, y + 9, 3, 3);
     display.drawTextLeftAlign(x + 6, y, name);
   }
 
@@ -745,7 +1024,7 @@ public:
 
   void activate() override {
     refreshContacts();
-    _list.setCount(_slot_count);
+    _list.setCount(_index_count);
     _list.reset();
     if (_list.getCount() > 0)
       _list.setSelected(0);
@@ -761,35 +1040,22 @@ public:
     if (_list.getCount() == 0)
       return true;
 
-    if (_list.getSelected() < _slot_count) {
-      _selected_contact = _slots[_list.getSelected()];
+    if (_list.getSelected() < _index_count) {
+      _selected_contact_index = _indexes[_list.getSelected()];
     }
-    _text[0] = 0; // Reset buffer.
-    char title[48];
-    auto name = _model->getContactName(_selected_contact);
-    snprintf(title, sizeof(title), "Send to %s", name ? name : "Contact");
-    _model->promptText(title, _text, sizeof(_text), onContactText, this);
+    _model->gotoContactThread(_selected_contact_index);
     return true;
   }
 };
 
 class ChannelPage : public UIPage {
   ScrollList _list = ScrollList(0, 0, 240, 116, 20);
-  char _text[128] = {};  // TODO: reuse across pages?
-  uint8_t _selected_channel = 0;
-  uint8_t _slots[MAX_GROUP_CHANNELS] = {};
-  uint8_t _slot_count = 0;
-
-  static void onChannelText(void* context, const char* text) {
-    auto* page = static_cast<ChannelPage*>(context);
-    if (!page)
-      return;
-
-    page->_model->sendChannelMessage(page->_selected_channel, text);
-  }
+  uint8_t _selected_channel_index = 0;
+  uint8_t _indexes[MAX_GROUP_CHANNELS] = {}; // channel indexes for UI rows
+  uint8_t _index_count = 0;
 
   void refreshChannels() {
-    _slot_count = _model->getChannelSlots(_slots, sizeof(_slots));
+    _index_count = _model->getChannelIndexes(_indexes, sizeof(_indexes));
   }
 
   static void renderChannelItem(
@@ -801,15 +1067,17 @@ class ChannelPage : public UIPage {
     int h,
     void* context) {
     auto* page = static_cast<ChannelPage*>(context);
-    if (index >= page->_slot_count)
+    if (index >= page->_index_count)
       return;
 
-    auto slot = page->_slots[index];
-    auto name = page->_model->getChannelName(slot);
+    auto channel_index = page->_indexes[index];
+    auto name = page->_model->getChannelName(channel_index);
     if (!name)
       return;
 
     display.setTextSize(2);
+    if (page->_model->getUnreadCountForChannel(channel_index) > 0)
+      display.fillRect(x, y + 9, 3, 3);
     display.drawTextLeftAlign(x + 6, y, name);
   }
 
@@ -828,7 +1096,7 @@ public:
 
   void activate() override {
     refreshChannels();
-    _list.setCount(_slot_count);
+    _list.setCount(_index_count);
     _list.reset();
     if (_list.getCount() > 0)
       _list.setSelected(0);
@@ -844,13 +1112,9 @@ public:
     if (_list.getCount() == 0)
       return true;
 
-    if (_list.getSelected() < _slot_count) {
-      _selected_channel = _slots[_list.getSelected()];
-      _text[0] = 0; // Reset buffer.
-      char title[48];
-      auto name = _model->getChannelName(_selected_channel);
-      snprintf(title, sizeof(title), "Send to %s", name);
-      _model->promptText(title, _text, sizeof(_text), onChannelText, this);
+    if (_list.getSelected() < _index_count) {
+      _selected_channel_index = _indexes[_list.getSelected()];
+      _model->gotoChannelThread(_selected_channel_index);
     }
 
     return true;

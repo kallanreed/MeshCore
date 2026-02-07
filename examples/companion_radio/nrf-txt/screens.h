@@ -33,6 +33,27 @@ public:
   bool handleInput(char c) override;
 };
 
+class ThreadScreen : public UIScreen
+{
+  UIViewModel* _model;
+  MessageList _list = MessageList(0, 24, 240, 112, 20);
+  bool _is_contact = true;
+  uint8_t _target = 0;
+  char _title[48] = {};
+  char _text[kMessageTextSize] = {};
+
+  void refresh();
+  static void onThreadText(void* context, const char* text);
+
+public:
+  ThreadScreen(UIViewModel* model);
+  void setContact(uint8_t contact_index);
+  void setChannel(uint8_t channel_index);
+  int render(DisplayDriver& display) override;
+  bool handleInput(char c) override;
+  void activate() override;
+};
+
 class TextInputScreen : public UIScreen
 {
   UIViewModel* _model;
@@ -60,7 +81,7 @@ class HomeScreen : public UIScreen
 {
   UIViewModel* _model;
   uint8_t _page = 0;
-  std::array<UIPage*, 9> _pages;
+  std::array<UIPage*, 8> _pages;
   BatteryIndicator _batt = BatteryIndicator(205, 118);
 
   UIPage* current() { return _pages[_page]; }

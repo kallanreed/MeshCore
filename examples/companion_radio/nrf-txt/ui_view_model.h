@@ -33,17 +33,33 @@ struct RadioDetails {
 };
 
 constexpr uint8_t kMessageSenderSize = 24;
-constexpr uint8_t kMessageTextSize = 128;
-constexpr uint8_t kMessageBufferSize = 128;
+constexpr uint8_t kContactPrefixSize = 6; // First bytes of public key for UI association.
+constexpr uint8_t kMessageTextSize = 128; // Max bytes stored per message text.
+constexpr uint8_t kMessageBufferSize = 128; // Ring buffer capacity in number of messages.
 constexpr uint8_t kRecentAdvertNameSize = 32;
 constexpr uint8_t kRecentAdvertMax = 8;
 constexpr uint8_t kRecentAdvertKeySize = 32; // PUB_KEY_SIZE
+
+enum class MessageKind : uint8_t {
+  unknown,
+  contact,
+  channel
+};
+
+enum class MessageDirection : uint8_t {
+  incoming,
+  outgoing
+};
 
 struct MessageEntry {
   bool read;
   uint32_t timestamp_ms;
   char sender[kMessageSenderSize];
   char message[kMessageTextSize];
+  MessageKind kind;
+  MessageDirection direction;
+  uint8_t channel_index;
+  uint8_t contact_prefix[kContactPrefixSize];
 };
 
 struct RecentAdvertEntry {
@@ -75,16 +91,40 @@ public:
     TextInputCallback callback,
     void* context) = 0;
   virtual bool sendChannelMessage(uint8_t channel_index, const char* text) = 0;
-  virtual uint8_t getChannelSlots(uint8_t* slots, uint8_t max) = 0;
-  virtual const char* getChannelName(uint8_t slot) = 0;
-  virtual uint8_t getContactSlots(uint8_t* slots, uint8_t max) = 0;
-  virtual const char* getContactName(uint8_t slot) = 0;
-  virtual bool sendContactMessage(uint8_t slot, const char* text) = 0;
+  virtual uint8_t getChannelIndexes(uint8_t* indexes, uint8_t max) = 0;
+  virtual const char* getChannelName(uint8_t channel_index) = 0;
+  virtual uint8_t getMsgCountForChannel(uint8_t channel_index) = 0;
+  virtual uint8_t getUnreadCountForChannel(uint8_t channel_index) = 0;
+  virtual uint8_t getMessagesForChannel(
+    uint8_t channel_index,
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out) = 0;
+  virtual bool getGlobalOffsetForChannel(uint8_t channel_index, uint8_t filtered_offset, uint8_t* out_global) = 0;
+  virtual void markMessagesReadForChannel(uint8_t channel_index) = 0;
+  virtual void gotoChannelThread(uint8_t channel_index) = 0;
+  virtual uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) = 0;
+  virtual const char* getContactName(uint8_t contact_index) = 0;
+  virtual bool sendContactMessage(uint8_t contact_index, const char* text) = 0;
+  virtual uint8_t getMsgCountForContact(uint8_t contact_index) = 0;
+  virtual uint8_t getUnreadCountForContact(uint8_t contact_index) = 0;
+  virtual uint8_t getMessagesForContact(
+    uint8_t contact_index,
+    uint8_t offset,
+    uint8_t count,
+    MessageEntry* out) = 0;
+  virtual bool getGlobalOffsetForContact(
+    uint8_t contact_index,
+    uint8_t filtered_offset,
+    uint8_t* out_global) = 0;
+  virtual void markMessagesReadForContact(uint8_t contact_index) = 0;
+  virtual void gotoContactThread(uint8_t contact_index) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
   virtual bool isBleEnabled() = 0;
   virtual void toggleBle() = 0;
   virtual void gotoHome() = 0;
+  virtual void gotoPrevious() = 0;
   virtual void gotoMsgViewer(uint8_t offset) = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;

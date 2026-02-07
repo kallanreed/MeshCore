@@ -8,9 +8,27 @@
 #include <helpers/ChannelDetails.h>
 #include <helpers/TxtDataHelpers.h>
 #include "screens.h"
+#include "keys.h"
 #include "target.h"
 
 constexpr uint32_t auto_off_ms = 15 * 1000;
+
+// --- Helpers  ---
+static bool getChatContactByIndex(uint8_t contact_index, ContactInfo& out) {
+  if (!the_mesh.getContactByIdx(contact_index, out))
+    return false;
+  return out.type == ADV_TYPE_CHAT;
+}
+
+static bool getContactPrefixByIndex(uint8_t contact_index, uint8_t* out_prefix) {
+  if (!out_prefix)
+    return false;
+  ContactInfo contact{};
+  if (!getChatContactByIndex(contact_index, contact))
+    return false;
+  memcpy(out_prefix, contact.id.pub_key, kContactPrefixSize);
+  return true;
+}
 
 // --- Private functions ---
 void UITask::dispatchRender() {
@@ -31,12 +49,15 @@ void UITask::dispatchRender() {
 }
 
 void UITask::setCurrent(UIScreen* screen) {
+  if (_curr != screen)
+    _prev_screen = _curr;
+
   _curr = screen;
   _curr->activate();
   renderAfter(0);
 }
 
- bool UITask::wakeScreen() {
+bool UITask::wakeScreen() {
   bool previously_on = true;
   if (!_display->isOn()) {
     previously_on = false;
@@ -72,21 +93,33 @@ void UITask::begin(
   _splash = new SplashScreen(this);
   _home = new HomeScreen(this);
   _msg_viewer = new MsgViewer(this);
+  _thread_viewer = new ThreadScreen(this);
   _text_input = new TextInputScreen(this);
   setCurrent(_splash);
 }
 
 // --- AbstractUITask ---
-void UITask::msgRead(int msgcount) {
-  // no-op
-}
-
 void UITask::newMsg(
   uint8_t path_len,
   const char* from_name,
   const char* text,
-  int msgcount) {
-  _message_buffer.addMessage(millis(), from_name ? from_name : "", text ? text : "");
+  int msgcount,
+  const UIMessageMeta& meta) {
+  MessageKind kind = MessageKind::unknown;
+  if (meta.kind == UIMessageKind::contact) {
+    kind = MessageKind::contact;
+  } else if (meta.kind == UIMessageKind::channel) {
+    kind = MessageKind::channel;
+  }
+
+  _message_buffer.addMessage(
+    millis(),
+    from_name ? from_name : "",
+    text ? text : "",
+    kind,
+    meta.contact_prefix,
+    meta.channel_index,
+    MessageDirection::incoming);
   renderAfter(0);
 }
 
@@ -115,6 +148,9 @@ void UITask::loop() {
     if (!wakeScreen()) {
       // Screen was off, call activate to ready the page.
       _curr->activate();
+    }
+    if (isKey(kb, KeyCode::FN_H)) {
+      gotoHome();
     } else if (_prompt.isActive()) {
       _prompt.handleInput(kb);
     } else {
@@ -194,11 +230,23 @@ bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
 
   auto now = the_mesh.getRTCClock()->getCurrentTime();
   auto name = the_mesh.getNodeName();
-  return the_mesh.sendGroupMessage(now, details.channel, name, text, len);
+  auto success = the_mesh.sendGroupMessage(now, details.channel, name, text, len);
+  if (success) {
+    _message_buffer.addMessage(
+      millis(),
+      "You",
+      text,
+      MessageKind::channel,
+      nullptr,
+      channel_index,
+      MessageDirection::outgoing);
+    renderAfter(0);
+  }
+  return success;
 }
 
-uint8_t UITask::getChannelSlots(uint8_t* slots, uint8_t max) {
-  if (!slots || max == 0)
+uint8_t UITask::getChannelIndexes(uint8_t* indexes, uint8_t max) {
+  if (!indexes || max == 0)
     return 0;
 
   uint8_t count = 0;
@@ -218,29 +266,54 @@ uint8_t UITask::getChannelSlots(uint8_t* slots, uint8_t max) {
     if (!has_secret)
       continue;
 
-    slots[count++] = i;
+    indexes[count++] = i;
   }
 
   return count;
 }
 
-const char* UITask::getChannelName(uint8_t slot) {
+const char* UITask::getChannelName(uint8_t channel_index) {
   static ChannelDetails details;
-  if (!the_mesh.getChannel(slot, details))
+  if (!the_mesh.getChannel(channel_index, details))
     return nullptr;
 
-  // TODO: may need special case for "Public"
   return details.name;
 }
 
-static bool getChatContactBySlot(uint8_t slot, ContactInfo& out) {
-  if (!the_mesh.getContactByIdx(slot, out))
-    return false;
-  return out.type == ADV_TYPE_CHAT;
+uint8_t UITask::getMsgCountForChannel(uint8_t channel_index) {
+  return _message_buffer.getCountForChannel(channel_index);
 }
 
-uint8_t UITask::getContactSlots(uint8_t* slots, uint8_t max) {
-  if (!slots || max == 0)
+uint8_t UITask::getUnreadCountForChannel(uint8_t channel_index) {
+  return _message_buffer.getUnreadCountForChannel(channel_index);
+}
+
+uint8_t UITask::getMessagesForChannel(
+  uint8_t channel_index,
+  uint8_t offset,
+  uint8_t count,
+  MessageEntry* out) {
+  return _message_buffer.getMessagesForChannel(offset, count, out, channel_index);
+}
+
+bool UITask::getGlobalOffsetForChannel(
+  uint8_t channel_index,
+  uint8_t filtered_offset,
+  uint8_t* out_global) {
+  return _message_buffer.getGlobalOffsetForChannel(filtered_offset, channel_index, out_global);
+}
+
+void UITask::markMessagesReadForChannel(uint8_t channel_index) {
+  _message_buffer.markAllReadForChannel(channel_index);
+}
+
+void UITask::gotoChannelThread(uint8_t channel_index) {
+  static_cast<ThreadScreen*>(_thread_viewer)->setChannel(channel_index);
+  setCurrent(_thread_viewer);
+}
+
+uint8_t UITask::getContactIndexes(uint8_t* indexes, uint8_t max) {
+  if (!indexes || max == 0)
     return 0;
 
   uint8_t count = 0;
@@ -251,15 +324,15 @@ uint8_t UITask::getContactSlots(uint8_t* slots, uint8_t max) {
       continue;
     if (contact.type != ADV_TYPE_CHAT)
       continue;
-    slots[count++] = static_cast<uint8_t>(i);
+    indexes[count++] = static_cast<uint8_t>(i);
   }
   return count;
 }
 
-const char* UITask::getContactName(uint8_t slot) {
+const char* UITask::getContactName(uint8_t contact_index) {
   static char name_buf[40];
   ContactInfo contact{};
-  if (!getChatContactBySlot(slot, contact))
+  if (!getChatContactByIndex(contact_index, contact))
     return nullptr;
 
   if (contact.name[0]) {
@@ -280,7 +353,7 @@ const char* UITask::getContactName(uint8_t slot) {
   return name_buf;
 }
 
-bool UITask::sendContactMessage(uint8_t slot, const char* text) {
+bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
   if (!text)
     return false;
 
@@ -289,18 +362,82 @@ bool UITask::sendContactMessage(uint8_t slot, const char* text) {
     return false;
 
   ContactInfo contact{};
-  if (!getChatContactBySlot(slot, contact))
+  if (!getChatContactByIndex(contact_index, contact))
     return false;
 
   auto now = the_mesh.getRTCClock()->getCurrentTime();
   uint32_t expected_ack = 0;
   uint32_t est_timeout = 0;
   auto result = the_mesh.sendMessage(contact, now, 0, text, expected_ack, est_timeout);
-  return result != MSG_SEND_FAILED;
+  auto success = result != MSG_SEND_FAILED;
+  if (success) {
+    _message_buffer.addMessage(
+      millis(),
+      "You",
+      text,
+      MessageKind::contact,
+      contact.id.pub_key,
+      0xFF,
+      MessageDirection::outgoing);
+    renderAfter(0);
+  }
+  return success;
+}
+
+uint8_t UITask::getMsgCountForContact(uint8_t contact_index) {
+  uint8_t prefix[kContactPrefixSize] = {};
+  if (!getContactPrefixByIndex(contact_index, prefix))
+    return 0;
+  return _message_buffer.getCountForContact(prefix);
+}
+
+uint8_t UITask::getUnreadCountForContact(uint8_t contact_index) {
+  uint8_t prefix[kContactPrefixSize] = {};
+  if (!getContactPrefixByIndex(contact_index, prefix))
+    return 0;
+  return _message_buffer.getUnreadCountForContact(prefix);
+}
+
+uint8_t UITask::getMessagesForContact(
+  uint8_t contact_index,
+  uint8_t offset,
+  uint8_t count,
+  MessageEntry* out) {
+  uint8_t prefix[kContactPrefixSize] = {};
+  if (!getContactPrefixByIndex(contact_index, prefix))
+    return 0;
+  return _message_buffer.getMessagesForContact(offset, count, out, prefix);
+}
+
+bool UITask::getGlobalOffsetForContact(
+  uint8_t contact_index,
+  uint8_t filtered_offset,
+  uint8_t* out_global) {
+  uint8_t prefix[kContactPrefixSize] = {};
+  if (!getContactPrefixByIndex(contact_index, prefix))
+    return false;
+  return _message_buffer.getGlobalOffsetForContact(filtered_offset, prefix, out_global);
+}
+
+void UITask::markMessagesReadForContact(uint8_t contact_index) {
+  uint8_t prefix[kContactPrefixSize] = {};
+  if (!getContactPrefixByIndex(contact_index, prefix))
+    return;
+  _message_buffer.markAllReadForContact(prefix);
+}
+
+void UITask::gotoContactThread(uint8_t contact_index) {
+  static_cast<ThreadScreen*>(_thread_viewer)->setContact(contact_index);
+  setCurrent(_thread_viewer);
 }
 
 uint32_t UITask::getBlePin() {
   return the_mesh.getBLEPin();
+}
+
+uint32_t UITask::getUptimeMin() {
+  auto uptime_millis = millis() - _ui_started_at;
+  return uptime_millis / 1000 / 60;
 }
 
 bool UITask::isBleEnabled() {
@@ -315,9 +452,17 @@ void UITask::toggleBle() {
   }
 }
 
-uint32_t UITask::getUptimeMin() {
-  auto uptime_millis = millis() - _ui_started_at;
-  return uptime_millis / 1000 / 60;
+void UITask::gotoHome() {
+  setCurrent(_home);
+  _prev_screen = nullptr;
+}
+
+void UITask::gotoPrevious() {
+  if (_prev_screen) {
+    setCurrent(_prev_screen);
+  } else {
+    gotoHome();
+  }
 }
 
 void UITask::gotoMsgViewer(uint8_t offset) {
@@ -356,8 +501,6 @@ void UITask::toggleBuzzer() {
   }
   _node_prefs->buzzer_quiet = _buzzer.isQuiet();
   the_mesh.savePrefs();
-  //showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
-  //_next_refresh = 0;
 }
 
 bool UITask::sendAdvert() {

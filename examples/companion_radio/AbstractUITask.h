@@ -22,6 +22,17 @@ enum class UIEventType {
     ack
 };
 
+enum class UIMessageKind : uint8_t {
+    contact,
+    channel
+};
+
+struct UIMessageMeta {
+  UIMessageKind kind;
+  uint8_t channel_index;
+  uint8_t contact_prefix[6];
+};
+
 class AbstractUITask {
 protected:
   mesh::MainBoard* _board;
@@ -40,7 +51,20 @@ public:
   void enableSerial() { _serial->enable(); }
   void disableSerial() { _serial->disable(); }
   virtual void msgRead(int msgcount) = 0;
-  virtual void newMsg(uint8_t path_len, const char* from_name, const char* text, int msgcount) = 0;
+  virtual void newMsg(
+    uint8_t path_len,
+    const char* from_name,
+    const char* text,
+    int msgcount) {}
+  virtual void newMsg(
+    uint8_t path_len,
+    const char* from_name,
+    const char* text,
+    int msgcount,
+    const UIMessageMeta& meta) {
+    (void)meta;
+    newMsg(path_len, from_name, text, msgcount);
+  }
   virtual void notify(UIEventType t = UIEventType::none) = 0;
   virtual void loop() = 0;
 };
