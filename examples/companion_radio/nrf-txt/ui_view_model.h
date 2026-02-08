@@ -34,7 +34,7 @@ struct RadioDetails {
 
 constexpr uint8_t kMessageSenderSize = 24;
 constexpr uint8_t kContactPrefixSize = 6; // First bytes of public key for UI association.
-constexpr uint8_t kMessageTextSize = 128; // Max bytes stored per message text.
+constexpr uint8_t kMessageTextSize = 141; // Max bytes stored per message text (including null terminator).
 constexpr uint8_t kMessageBufferSize = 128; // Ring buffer capacity in number of messages.
 constexpr uint8_t kRecentAdvertNameSize = 32;
 constexpr uint8_t kRecentAdvertMax = 8;
