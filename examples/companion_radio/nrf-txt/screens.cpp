@@ -180,7 +180,7 @@ int MsgViewer::render(DisplayDriver& display) {
 }
 
 bool MsgViewer::handleInput(char c) {
-  if (isKey(c, KeyCode::ESC) || isKey(c, KeyCode::ENTER)) {
+  if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT, KeyCode::ENTER)) {
     _model->gotoPrevious();
     return true;
   }
@@ -268,7 +268,7 @@ int ThreadScreen::render(DisplayDriver& display) {
 }
 
 bool ThreadScreen::handleInput(char c) {
-  if (isKey(c, KeyCode::ESC)) {
+  if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT)) {
     _model->gotoHome();
     return true;
   }

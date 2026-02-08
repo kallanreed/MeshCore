@@ -169,3 +169,8 @@ enum class KeyCode : uint8_t{
 static inline bool isKey(char value, KeyCode code) {
   return static_cast<uint8_t>(value) == static_cast<uint8_t>(code);
 }
+
+template <typename... Codes>
+static inline bool isAnyKey(char value, Codes... codes) {
+  return (isKey(value, codes) || ...);
+}
