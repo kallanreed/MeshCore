@@ -9,7 +9,6 @@
 #include <helpers/TxtDataHelpers.h>
 #include "screens.h"
 #include "keys.h"
-#include "target.h"
 
 constexpr uint32_t auto_off_ms = 15 * 1000;
 
@@ -296,13 +295,6 @@ uint8_t UITask::getMessagesForChannel(
   return _message_buffer.getMessagesForChannel(offset, count, out, channel_index);
 }
 
-bool UITask::getGlobalOffsetForChannel(
-  uint8_t channel_index,
-  uint8_t filtered_offset,
-  uint8_t* out_global) {
-  return _message_buffer.getGlobalOffsetForChannel(filtered_offset, channel_index, out_global);
-}
-
 void UITask::markMessagesReadForChannel(uint8_t channel_index) {
   _message_buffer.markAllReadForChannel(channel_index);
 }
@@ -409,16 +401,6 @@ uint8_t UITask::getMessagesForContact(
   return _message_buffer.getMessagesForContact(offset, count, out, prefix);
 }
 
-bool UITask::getGlobalOffsetForContact(
-  uint8_t contact_index,
-  uint8_t filtered_offset,
-  uint8_t* out_global) {
-  uint8_t prefix[kContactPrefixSize] = {};
-  if (!getContactPrefixByIndex(contact_index, prefix))
-    return false;
-  return _message_buffer.getGlobalOffsetForContact(filtered_offset, prefix, out_global);
-}
-
 void UITask::markMessagesReadForContact(uint8_t contact_index) {
   uint8_t prefix[kContactPrefixSize] = {};
   if (!getContactPrefixByIndex(contact_index, prefix))
@@ -465,8 +447,8 @@ void UITask::gotoPrevious() {
   }
 }
 
-void UITask::gotoMsgViewer(uint8_t offset) {
-  static_cast<MsgViewer*>(_msg_viewer)->setOffset(offset);
+void UITask::gotoMsgViewer(const MessageEntry& message, MessageScope scope) {
+  static_cast<MsgViewer*>(_msg_viewer)->setMessage(message, scope);
   setCurrent(_msg_viewer);
 }
 
@@ -613,6 +595,18 @@ uint8_t UITask::getMessages(uint8_t offset, uint8_t count, MessageEntry* out) {
 
 void UITask::markMessageRead(uint8_t offset) {
   _message_buffer.markRead(offset);
+}
+
+void UITask::markMessageReadById(uint32_t message_id) {
+  _message_buffer.markReadById(message_id);
+}
+
+bool UITask::getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) {
+  return _message_buffer.getPreviousMessage(scope, current, out);
+}
+
+bool UITask::getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) {
+  return _message_buffer.getNextMessage(scope, current, out);
 }
 
 uint8_t UITask::getRecentAdverts(RecentAdvertEntry* out, uint8_t max) {

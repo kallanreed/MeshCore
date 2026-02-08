@@ -347,6 +347,34 @@ class MessageBuffer {
     return entry.kind == MessageKind::channel && entry.channel_index == channel_index;
   }
 
+  bool matchesThread(const MessageEntry& entry, const MessageEntry& current) const {
+    if (current.kind == MessageKind::contact)
+      return matchesContact(entry, current.contact_prefix);
+    if (current.kind == MessageKind::channel)
+      return matchesChannel(entry, current.channel_index);
+    return false;
+  }
+
+  bool matchesScope(MessageScope scope, const MessageEntry& entry, const MessageEntry& current) const {
+    if (scope == MessageScope::all)
+      return true;
+    return matchesThread(entry, current);
+  }
+
+  bool findMessageIndexById(uint32_t message_id, uint8_t* out_index) const {
+    if (!out_index)
+      return false;
+
+    for (uint8_t i = 0; i < _count; i++) {
+      auto& entry = _entries[toIndex(i)];
+      if (entry.timestamp_ms == message_id) {
+        *out_index = i;
+        return true;
+      }
+    }
+    return false;
+  }
+
 public:
   uint8_t getCount() const { return _count; }
 
@@ -409,6 +437,13 @@ public:
       return;
 
     _entries[toIndex(offset)].read = true;
+  }
+
+  void markReadById(uint32_t message_id) {
+    uint8_t index = 0;
+    if (!findMessageIndexById(message_id, &index))
+      return;
+    _entries[toIndex(index)].read = true;
   }
 
   void markAllRead() {
@@ -514,73 +549,6 @@ public:
     return copied;
   }
 
-  bool getGlobalOffsetForContact(uint8_t filtered_offset, const uint8_t* prefix, uint8_t* out_global) const {
-    if (!prefix || !out_global)
-      return false;
-
-    uint8_t matched = 0;
-    for (uint8_t i = 0; i < _count; i++) {
-      auto& entry = _entries[toIndex(i)];
-      if (!matchesContact(entry, prefix))
-        continue;
-      if (matched == filtered_offset) {
-        *out_global = i;
-        return true;
-      }
-      matched++;
-    }
-    return false;
-  }
-
-  bool getGlobalOffsetForChannel(uint8_t filtered_offset, uint8_t channel_index, uint8_t* out_global) const {
-    if (!out_global)
-      return false;
-
-    uint8_t matched = 0;
-    for (uint8_t i = 0; i < _count; i++) {
-      auto& entry = _entries[toIndex(i)];
-      if (!matchesChannel(entry, channel_index))
-        continue;
-      if (matched == filtered_offset) {
-        *out_global = i;
-        return true;
-      }
-      matched++;
-    }
-    return false;
-  }
-
-  void markReadForContact(uint8_t offset, const uint8_t* prefix) {
-    if (!prefix)
-      return;
-
-    uint8_t matched = 0;
-    for (uint8_t i = 0; i < _count; i++) {
-      auto idx = toIndex(i);
-      if (!matchesContact(_entries[idx], prefix))
-        continue;
-      if (matched == offset) {
-        _entries[idx].read = true;
-        return;
-      }
-      matched++;
-    }
-  }
-
-  void markReadForChannel(uint8_t offset, uint8_t channel_index) {
-    uint8_t matched = 0;
-    for (uint8_t i = 0; i < _count; i++) {
-      auto idx = toIndex(i);
-      if (!matchesChannel(_entries[idx], channel_index))
-        continue;
-      if (matched == offset) {
-        _entries[idx].read = true;
-        return;
-      }
-      matched++;
-    }
-  }
-
   void markAllReadForContact(const uint8_t* prefix) {
     if (!prefix)
       return;
@@ -597,6 +565,35 @@ public:
       if (matchesChannel(_entries[idx], channel_index))
         _entries[idx].read = true;
     }
+  }
+
+  bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) const {
+    return getAdjacentMessage(scope, current, false, out);
+  }
+
+  bool getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) const {
+    return getAdjacentMessage(scope, current, true, out);
+  }
+
+  bool getAdjacentMessage(MessageScope scope, const MessageEntry& current, bool forward, MessageEntry* out) const {
+    if (!out)
+      return false;
+
+    uint8_t start = 0;
+    if (!findMessageIndexById(current.timestamp_ms, &start))
+      return false;
+
+    int16_t step = forward ? 1 : -1;
+    int16_t i = static_cast<int16_t>(start) + step;
+    while (i >= 0 && i < _count) {
+      auto& entry = _entries[toIndex(static_cast<uint8_t>(i))];
+      if (matchesScope(scope, entry, current)) {
+        *out = entry;
+        return true;
+      }
+      i += step;
+    }
+    return false;
   }
 };
 
@@ -851,8 +848,11 @@ public:
     }
 
     if (isKey(c, KeyCode::ENTER)) {
-      if (_list.getCount() != 0)
-        _model->gotoMsgViewer(_list.getSelected());
+      if (_list.getCount() != 0) {
+        MessageEntry entry{};
+        if (_model->getMessages(_list.getSelected(), 1, &entry) == 1)
+          _model->gotoMsgViewer(entry, MessageScope::all);
+      }
       return true;
     }
 

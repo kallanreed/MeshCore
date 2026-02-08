@@ -139,16 +139,15 @@ void SplashScreen::poll() {
 MsgViewer::MsgViewer(UIViewModel* model) : _model(model) {
 }
 
-void MsgViewer::setOffset(uint8_t offset) {
-  _offset = offset;
-  loadMessage();
-  _model->renderAfter(0);
+void MsgViewer::setMessageInternal(const MessageEntry& message) {
+  _message = message;
+  _has_message = true;
+  _model->markMessageReadById(_message.timestamp_ms);
 }
 
-void MsgViewer::loadMessage() {
-  _has_message = _model->getMessages(_offset, 1, &_message) == 1;
-  if (_has_message)
-    _model->markMessageRead(_offset);
+void MsgViewer::setMessage(const MessageEntry& message, MessageScope scope) {
+  _scope = scope;
+  setMessageInternal(message);
 }
 
 int MsgViewer::render(DisplayDriver& display) {
@@ -188,16 +187,15 @@ bool MsgViewer::handleInput(char c) {
   bool handled = false;
 
   if (isKey(c, KeyCode::UP)) {
-    if (_offset > 0) {
-      _offset--;
-      loadMessage();
+    MessageEntry previous{};
+    if (_model->getPreviousMessage(_scope, _message, &previous)) {
+      setMessageInternal(previous);
       handled = true;
     }
   } else if (isKey(c, KeyCode::DOWN)) {
-    auto count = _model->getMsgCount();
-    if (_offset + 1 < count) {
-      _offset++;
-      loadMessage();
+    MessageEntry next{};
+    if (_model->getNextMessage(_scope, _message, &next)) {
+      setMessageInternal(next);
       handled = true;
     }
   }
@@ -298,16 +296,16 @@ bool ThreadScreen::handleInput(char c) {
   }
 
   if (isKey(c, KeyCode::ENTER)) {
-    uint8_t global_offset = 0;
     auto selected = _list.getSelected();
+    MessageEntry entry{};
     bool found = false;
     if (_is_contact) {
-      found = _model->getGlobalOffsetForContact(_target, selected, &global_offset);
+      found = _model->getMessagesForContact(_target, selected, 1, &entry) == 1;
     } else {
-      found = _model->getGlobalOffsetForChannel(_target, selected, &global_offset);
+      found = _model->getMessagesForChannel(_target, selected, 1, &entry) == 1;
     }
     if (found) {
-      _model->gotoMsgViewer(global_offset);
+      _model->gotoMsgViewer(entry, MessageScope::thread);
     }
     return true;
   }

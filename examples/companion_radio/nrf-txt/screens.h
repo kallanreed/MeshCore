@@ -20,15 +20,15 @@ public:
 class MsgViewer : public UIScreen
 {
   UIViewModel* _model;
-  uint8_t _offset = 0;
   bool _has_message = false;
   MessageEntry _message = {};
+  MessageScope _scope = MessageScope::all;
 
-  void loadMessage();
+  void setMessageInternal(const MessageEntry& message);
 
 public:
   MsgViewer(UIViewModel* model);
-  void setOffset(uint8_t offset);
+  void setMessage(const MessageEntry& message, MessageScope scope);
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
 };

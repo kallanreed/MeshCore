@@ -51,6 +51,11 @@ enum class MessageDirection : uint8_t {
   outgoing
 };
 
+enum class MessageScope : uint8_t {
+  all,
+  thread
+};
+
 struct MessageEntry {
   bool read;
   uint32_t timestamp_ms;
@@ -100,7 +105,6 @@ public:
     uint8_t offset,
     uint8_t count,
     MessageEntry* out) = 0;
-  virtual bool getGlobalOffsetForChannel(uint8_t channel_index, uint8_t filtered_offset, uint8_t* out_global) = 0;
   virtual void markMessagesReadForChannel(uint8_t channel_index) = 0;
   virtual void gotoChannelThread(uint8_t channel_index) = 0;
   virtual uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) = 0;
@@ -113,10 +117,6 @@ public:
     uint8_t offset,
     uint8_t count,
     MessageEntry* out) = 0;
-  virtual bool getGlobalOffsetForContact(
-    uint8_t contact_index,
-    uint8_t filtered_offset,
-    uint8_t* out_global) = 0;
   virtual void markMessagesReadForContact(uint8_t contact_index) = 0;
   virtual void gotoContactThread(uint8_t contact_index) = 0;
   virtual uint32_t getBlePin() = 0;
@@ -125,7 +125,7 @@ public:
   virtual void toggleBle() = 0;
   virtual void gotoHome() = 0;
   virtual void gotoPrevious() = 0;
-  virtual void gotoMsgViewer(uint8_t offset) = 0;
+  virtual void gotoMsgViewer(const MessageEntry& message, MessageScope scope) = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;
@@ -138,6 +138,9 @@ public:
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
   virtual void markMessageRead(uint8_t offset) = 0;
+  virtual void markMessageReadById(uint32_t message_id) = 0;
+  virtual bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) = 0;
+  virtual bool getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) = 0;
   virtual uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) = 0;
   virtual bool hasContact(const uint8_t* pub_key) = 0;
   virtual bool addRecentAdvertContact(const RecentAdvertEntry& advert) = 0;

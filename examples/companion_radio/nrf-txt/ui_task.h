@@ -98,10 +98,6 @@ public:
     uint8_t offset,
     uint8_t count,
     MessageEntry* out) override;
-  bool getGlobalOffsetForChannel(
-    uint8_t channel_index,
-    uint8_t filtered_offset,
-    uint8_t* out_global) override;
   void markMessagesReadForChannel(uint8_t channel_index) override;
   void gotoChannelThread(uint8_t channel_index) override;
   uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) override;
@@ -114,10 +110,6 @@ public:
     uint8_t offset,
     uint8_t count,
     MessageEntry* out) override;
-  bool getGlobalOffsetForContact(
-    uint8_t contact_index,
-    uint8_t filtered_offset,
-    uint8_t* out_global) override;
   void markMessagesReadForContact(uint8_t contact_index) override;
   void gotoContactThread(uint8_t contact_index) override;
   uint32_t getBlePin() override;
@@ -126,7 +118,7 @@ public:
   void toggleBle() override;
   void gotoHome() override;
   void gotoPrevious() override;
-  void gotoMsgViewer(uint8_t offset) override;
+  void gotoMsgViewer(const MessageEntry& message, MessageScope scope) override;
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
@@ -138,6 +130,9 @@ public:
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
+  void markMessageReadById(uint32_t message_id) override;
+  bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) override;
+  bool getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) override;
   uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) override;
   bool hasContact(const uint8_t* pub_key) override;
   bool addRecentAdvertContact(const RecentAdvertEntry& advert) override;
