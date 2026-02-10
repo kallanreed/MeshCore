@@ -485,9 +485,9 @@ void UITask::toggleBuzzer() {
   the_mesh.savePrefs();
 }
 
-bool UITask::sendAdvert() {
+bool UITask::sendAdvert(bool flood) {
   notify(UIEventType::ack);
-  return the_mesh.advert();
+  return the_mesh.advert(flood);
 }
 
 void UITask::setGpsEnabled(bool enabled) {

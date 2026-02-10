@@ -1138,7 +1138,10 @@ public:
         model->toggleBle();
         break;
       case 2:
-        model->sendAdvert();
+        model->sendAdvert(false);
+        break;
+      case 3:
+        model->sendAdvert(true);
         break;
       default:
         break;
@@ -1188,8 +1191,8 @@ public:
     if (!isKey(c, KeyCode::ENTER))
       return false;
 
-    static const char* options[] = { "Reset Stats", "Toggle BLE", "Send Advert" };
-    _model->prompt("Radio Options", options, 3, onOptionsSelected, _model);
+    static const char* options[] = { "Reset Stats", "Toggle BLE", "0-Hop Advert", "Flood Advert" };
+    _model->prompt("Radio Options", options, 4, onOptionsSelected, _model);
     return true;
   }
 };

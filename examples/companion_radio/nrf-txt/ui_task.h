@@ -122,7 +122,7 @@ public:
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
-  bool sendAdvert() override;
+  bool sendAdvert(bool flood=false) override;
   void setGpsEnabled(bool enabled) override;
   Position getPosition() override;
   DateTime2 getDateTime() override;
