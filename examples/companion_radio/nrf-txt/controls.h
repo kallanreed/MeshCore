@@ -660,14 +660,11 @@ class MessageList {
       snprintf(tmp, sizeof(tmp), "%s", entry.message);
     }
 
-    char message[kMessageTextSize + 4];
-    display.translateUTF8ToBlocks(message, tmp, sizeof(message));
-
     display.setTextSize(2);
     if (!entry.read)
       display.fillRect(x, y + 9, 3, 3);
 
-    display.drawTextLeftAlign(x + 6, y, message);
+    display.drawTextLeftAlign(x + 6, y, tmp);
   }
 
 public:
@@ -755,6 +752,9 @@ class HomePage : public UIPage {
       case 0:
         model->toggleBuzzer();
         break;
+      case 1:
+        model->toggleScreenInvert();
+        break;
       default:
         break;
     }
@@ -800,8 +800,8 @@ public:
     if (!isKey(c, KeyCode::ENTER))
       return false;
 
-    static const char* options[] = { "Toggle Buzzer" };
-    _model->prompt("Options", options, 1, onOptionsSelected, _model);
+    static const char* options[] = { "Toggle Buzzer", "Toggle Invert" };
+    _model->prompt("Options", options, 2, onOptionsSelected, _model);
     return true;
   }
 };
@@ -1004,10 +1004,13 @@ public:
     if (!name)
       return;
 
+    char name_buf[kRecentAdvertNameSize];
+    display.translateUTF8ToBlocks(name_buf, name, sizeof(name_buf));
+
     display.setTextSize(2);
     if (page->_model->getUnreadCountForContact(contact_index) > 0)
       display.fillRect(x, y + 9, 3, 3);
-    display.drawTextLeftAlign(x + 6, y, name);
+    display.drawTextLeftAlign(x + 6, y, name_buf);
   }
 
   ContactPage(UIViewModel* model) : UIPage(model) {
@@ -1292,8 +1295,6 @@ public:
 };
 
 class DebugPage : public UIPage {
-  uint8_t _last_key = 0;
-
 public:
   DebugPage(UIViewModel* model) : UIPage(model) {}
 
@@ -1302,16 +1303,47 @@ public:
   }
 
   void renderPreview(DisplayDriver& display) override {
-    char tmp[8];
-    display.setTextSize(3);
-    sprintf(tmp, "0x%02X", _last_key);
-    display.drawTextCentered(display.width() / 2, 40, tmp);
+    static const char* lines10[] = {
+      "😀 😂 😍 😢 😠 😮 😕 🤔 😎 😒",
+      "👍 👎 ⚠ ⭐ ▶ ❓ 💬 💡 🛠 🤖",
+      "🧭 👨 🎉 💰 🔒 🌿 🦆 🐶 👻"
+    };
+    static const char* lines16[] = {
+      "😀 😂 😍 😢 😠 😮 😕 🤔 😎 😒",
+      "👍 👎 ⚠ ⭐ ▶ ❓ 💬 💡 🛠 🤖",
+      "🧭 👨 🎉 💰 🔒 🌿 🦆 🐶 👻"
+    };
+    char line[96];
+
+    display.setTextSize(1);
+    for (size_t i = 0; i < sizeof(lines10) / sizeof(lines10[0]); i++) {
+      display.translateUTF8ToBlocks(line, lines10[i], sizeof(line));
+      display.drawTextLeftAlign(4, 4 + (int)(i * 12), line);
+    }
+
+    display.setTextSize(2);
+    for (size_t i = 0; i < sizeof(lines16) / sizeof(lines16[0]); i++) {
+      display.translateUTF8ToBlocks(line, lines16[i], sizeof(line));
+      display.drawTextLeftAlign(4, 50 + (int)(i * 20), line);
+    }
+
+    if (_invert) {
+      display.setColor(DisplayDriver::INVERSE);
+      display.fillRect(0, 0, 240, 115);
+      display.setColor(DisplayDriver::LIGHT);
+    }
   }
 
   bool handleInput(char c) override {
-    _last_key = static_cast<uint8_t>(c);
-    return false;
+    if (!isKey(c, KeyCode::ENTER))
+      return false;
+
+    _invert = !_invert;
+    return true;
   }
+
+private:
+  bool _invert = false;
 };
 
 class PowerPage : public UIPage {

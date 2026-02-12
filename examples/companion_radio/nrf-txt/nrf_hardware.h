@@ -77,5 +77,6 @@ public:
   void drawXbm(int x, int y, const uint8_t* bits, int w, int h) override;
   void drawXbm(int x, int y, const uint8_t* bits, int w, int h, int scale) override;
   uint16_t getTextWidth(const char* str) override;
+  void translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) override;
   void endFrame() override;
 };

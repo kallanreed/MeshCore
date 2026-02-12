@@ -129,6 +129,7 @@ public:
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;
+  virtual void toggleScreenInvert() = 0;
   virtual bool sendAdvert(bool flood=false) = 0;
   virtual void setGpsEnabled(bool enabled) = 0;
   virtual Position getPosition() = 0;

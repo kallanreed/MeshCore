@@ -160,9 +160,7 @@ int MsgViewer::render(DisplayDriver& display) {
     return refresh;
   }
 
-  char sender[kMessageSenderSize];
-  display.translateUTF8ToBlocks(sender, _message.sender, sizeof(sender));
-  display.drawTextLeftAlign(2, 2, sender);
+  display.drawTextLeftAlign(2, 2, _message.sender);
 
   char age[12];
   formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
@@ -170,10 +168,8 @@ int MsgViewer::render(DisplayDriver& display) {
 
   display.drawRect(0, 20, display.width(), 1);
 
-  char message[kMessageTextSize];
-  display.translateUTF8ToBlocks(message, _message.message, sizeof(message));
   display.setCursor(2, 24);
-  display.printWordWrap(message, display.width() - 4);
+  display.printWordWrap(_message.message, display.width() - 4);
 
   return refresh;
 }
@@ -255,7 +251,9 @@ void ThreadScreen::activate() {
 int ThreadScreen::render(DisplayDriver& display) {
   display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
-  display.drawTextLeftAlign(2, 2, _title);
+  char title[sizeof(_title)];
+  display.translateUTF8ToBlocks(title, _title, sizeof(title));
+  display.drawTextLeftAlign(2, 2, title);
   display.drawRect(0, 20, display.width(), 1);
   if (_list.getCount() == 0) {
     display.drawTextCentered(display.width() / 2, 60, "No messages");
@@ -473,6 +471,7 @@ static ChannelPage channel_page = ChannelPage(view_model);
 static RadioPage radio_page = RadioPage(view_model);
 static GpsPage gps_page = GpsPage(view_model);
 static ClockPage clock_page = ClockPage(view_model);
+static DebugPage debug_page = DebugPage(view_model);
 static PowerPage power_page = PowerPage(view_model);
 
 // --- HomeScreen ---
@@ -484,7 +483,8 @@ HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[4] = &radio_page;
   _pages[5] = &gps_page;
   _pages[6] = &clock_page;
-  _pages[7] = &power_page;
+  _pages[7] = &debug_page;
+  _pages[8] = &power_page;
 
   current()->activate();
 }

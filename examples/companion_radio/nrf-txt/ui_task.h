@@ -35,6 +35,7 @@ class UITask : public AbstractUITask, public UIViewModel {
 
   float _batt_percent = 0;
   MessageBuffer _message_buffer;
+  bool _invert_screen = false;
 
   UIScreen* _splash;
   UIScreen* _home;
@@ -122,6 +123,7 @@ public:
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;
+  void toggleScreenInvert() override;
   bool sendAdvert(bool flood=false) override;
   void setGpsEnabled(bool enabled) override;
   Position getPosition() override;

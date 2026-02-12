@@ -1,10 +1,15 @@
 #include "nrf_hardware.h"
+#include "utf8.h"
 
 static constexpr int kXOffset = 0;
 static constexpr int kYOffset = 0;
 
 //static constexpr uint16_t LightColor = ST77XX_ORANGE;
 static constexpr uint16_t LightColor = ST77XX_WHITE;
+
+static char PassThroughFontLookup(const uint8_t ch) {
+  return (char)ch;
+}
 
 bool ST7789DisplayNrfTxt::begin() {
   if (!_isOn) {
@@ -21,6 +26,7 @@ bool ST7789DisplayNrfTxt::begin() {
     display.init();
     display.landscapeScreen();
     display.displayOn();
+    display.setFontTableLookupFunction(PassThroughFontLookup);
     setCursor(0, 0);
 
     _isOn = true;
@@ -36,6 +42,7 @@ void ST7789DisplayNrfTxt::turnOn() {
     display.init();
     display.displayOn();
     delay(20);
+    display.setFontTableLookupFunction(PassThroughFontLookup);
 
 #ifdef PIN_TFT_LEDA_CTL_ACTIVE
     digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
@@ -150,6 +157,10 @@ void ST7789DisplayNrfTxt::drawXbm(int x, int y, const uint8_t *bits, int w, int 
 
 uint16_t ST7789DisplayNrfTxt::getTextWidth(const char *str) {
   return display.getStringWidth(str);
+}
+
+void ST7789DisplayNrfTxt::translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) {
+  ::translateUTF8ToBlocks(dest, src, dest_size);
 }
 
 void ST7789DisplayNrfTxt::endFrame() {

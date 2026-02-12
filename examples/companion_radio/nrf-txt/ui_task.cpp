@@ -9,6 +9,7 @@
 #include <helpers/TxtDataHelpers.h>
 #include "screens.h"
 #include "keys.h"
+#include "utf8.h"
 
 constexpr uint32_t auto_off_ms = 15 * 1000;
 
@@ -42,6 +43,11 @@ void UITask::dispatchRender() {
   auto delay_ms = _curr->render(*_display);
   if (_prompt.isActive()) {
     _prompt.render(*_display);
+  }
+  if (_invert_screen) {
+    _display->setColor(DisplayDriver::INVERSE);
+    _display->fillRect(0, 0, 240, 135);
+    _display->setColor(DisplayDriver::LIGHT);
   }
   renderAfter(delay_ms);
   _display->endFrame();
@@ -104,6 +110,14 @@ void UITask::newMsg(
   const char* text,
   int msgcount,
   const UIMessageMeta& meta) {
+  char sender[kMessageSenderSize];
+  char message[kMessageTextSize];
+  const char* safe_sender = from_name ? from_name : "";
+  const char* safe_message = text ? text : "";
+
+  translateUTF8ToBlocks(sender, safe_sender, sizeof(sender));
+  translateUTF8ToBlocks(message, safe_message, sizeof(message));
+
   MessageKind kind = MessageKind::unknown;
   if (meta.kind == UIMessageKind::contact) {
     kind = MessageKind::contact;
@@ -113,8 +127,8 @@ void UITask::newMsg(
 
   _message_buffer.addMessage(
     millis(),
-    from_name ? from_name : "",
-    text ? text : "",
+    sender,
+    message,
     kind,
     meta.contact_prefix,
     meta.channel_index,
@@ -231,10 +245,12 @@ bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
   auto name = the_mesh.getNodeName();
   auto success = the_mesh.sendGroupMessage(now, details.channel, name, text, len);
   if (success) {
+    char message[kMessageTextSize];
+    translateUTF8ToBlocks(message, text, sizeof(message));
     _message_buffer.addMessage(
       millis(),
       "You",
-      text,
+      message,
       MessageKind::channel,
       nullptr,
       channel_index,
@@ -363,10 +379,12 @@ bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
   auto result = the_mesh.sendMessage(contact, now, 0, text, expected_ack, est_timeout);
   auto success = result != MSG_SEND_FAILED;
   if (success) {
+    char message[kMessageTextSize];
+    translateUTF8ToBlocks(message, text, sizeof(message));
     _message_buffer.addMessage(
       millis(),
       "You",
-      text,
+      message,
       MessageKind::contact,
       contact.id.pub_key,
       0xFF,
@@ -483,6 +501,11 @@ void UITask::toggleBuzzer() {
   }
   _node_prefs->buzzer_quiet = _buzzer.isQuiet();
   the_mesh.savePrefs();
+}
+
+void UITask::toggleScreenInvert() {
+  _invert_screen = !_invert_screen;
+  renderAfter(0);
 }
 
 bool UITask::sendAdvert(bool flood) {
