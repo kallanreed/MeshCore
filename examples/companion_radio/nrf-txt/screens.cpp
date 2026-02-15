@@ -471,7 +471,6 @@ static ChannelPage channel_page = ChannelPage(view_model);
 static RadioPage radio_page = RadioPage(view_model);
 static GpsPage gps_page = GpsPage(view_model);
 static ClockPage clock_page = ClockPage(view_model);
-static DebugPage debug_page = DebugPage(view_model);
 static PowerPage power_page = PowerPage(view_model);
 
 // --- HomeScreen ---
@@ -483,8 +482,7 @@ HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[4] = &radio_page;
   _pages[5] = &gps_page;
   _pages[6] = &clock_page;
-  _pages[7] = &debug_page;
-  _pages[8] = &power_page;
+  _pages[7] = &power_page;
 
   current()->activate();
 }

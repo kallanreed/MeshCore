@@ -292,10 +292,28 @@ EmojiSlot emojiSlotFromCodepoint(uint32_t cp) {
     {0x2699, EmojiSlot::TechSystem},  // ⚙
     {0x1F50C, EmojiSlot::TechSystem}, // 🔌
     {0x1F50B, EmojiSlot::TechSystem}, // 🔋
+    {0x1F50D, EmojiSlot::TechSystem}, // 🔍
+    {0x1F50E, EmojiSlot::TechSystem}, // 🔎
     {0x1F4E1, EmojiSlot::TechSystem}, // 📡
+    {0x1F4E0, EmojiSlot::TechSystem}, // 📠
+    {0x1F4DE, EmojiSlot::TechSystem}, // 📞
+    {0x260E, EmojiSlot::TechSystem},  // ☎
+    {0x1F4F1, EmojiSlot::TechSystem}, // 📱
+    {0x1F4F2, EmojiSlot::TechSystem}, // 📲
+    {0x1F4FB, EmojiSlot::TechSystem}, // 📻
     {0x1F4F6, EmojiSlot::TechSystem}, // 📶
+    {0x1F4FA, EmojiSlot::TechSystem}, // 📺
+    {0x1F4F7, EmojiSlot::TechSystem}, // 📷
+    {0x1F4F8, EmojiSlot::TechSystem}, // 📸
+    {0x1F4F9, EmojiSlot::TechSystem}, // 📹
+    {0x1F5A7, EmojiSlot::TechSystem}, // 🖧
+    {0x1F5A8, EmojiSlot::TechSystem}, // 🖨
     {0x1F916, EmojiSlot::TechSystem}, // 🤖
-    {0x1F5A5, EmojiSlot::TechSystem}  // 🖥
+    {0x1F5A5, EmojiSlot::TechSystem}, // 🖥
+    {0x1F5B1, EmojiSlot::TechSystem}, // 🖱
+    {0x1F5B2, EmojiSlot::TechSystem}, // 🖲
+    {0x1F5B3, EmojiSlot::TechSystem}, // 🖳
+    {0x1F9EE, EmojiSlot::TechSystem}  // 🧮
   };
   static const RangeSlot kTechRanges[] = {
     {0x1F4BB, 0x1F4BF, EmojiSlot::TechSystem} // 💻-📿

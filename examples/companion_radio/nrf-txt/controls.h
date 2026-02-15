@@ -660,11 +660,11 @@ class MessageList {
       snprintf(tmp, sizeof(tmp), "%s", entry.message);
     }
 
-    display.setTextSize(2);
+    display.setTextSize(1);
     if (!entry.read)
-      display.fillRect(x, y + 9, 3, 3);
+      display.fillRect(x, y + 4, 3, 3);
 
-    display.drawTextLeftAlign(x + 6, y, tmp);
+    display.drawTextLeftAlign(x + 6, y - 2, tmp);
   }
 
 public:
@@ -803,60 +803,6 @@ public:
     static const char* options[] = { "Toggle Buzzer", "Toggle Invert" };
     _model->prompt("Options", options, 2, onOptionsSelected, _model);
     return true;
-  }
-};
-
-class MsgPage : public UIPage {
-  MessageList _list = MessageList(0, 0, 240, 116, 20);
-
-public:
-  MsgPage(UIViewModel* model) : UIPage(model) {
-    _list.setModel(model);
-    _list.setModeAll();
-  }
-
-  const uint8_t* getIcon() override {
-    return icon_msg;
-  }
-
-  void renderPreview(DisplayDriver& display) override {
-    _list.setModeAll();
-    _list.refresh();
-    _list.render(display);
-  }
-
-  void activate() override {
-    _list.setModeAll();
-    _list.refresh();
-    _list.reset();
-    auto count = _list.getCount();
-    bool found_unread = _list.selectFirstUnread();
-    if (!found_unread && count > 0)
-      _list.setSelected(static_cast<uint8_t>(count - 1));
-  }
-
-  bool handleInput(char c) override {
-    if (_list.handleInput(c))
-      return true;
-
-    if (isKey(c, KeyCode::FN_ENTER)) {
-      auto count = static_cast<uint8_t>(_model->getMsgCount());
-      for (uint8_t offset = 0; offset < count; offset++) {
-        _model->markMessageRead(offset);
-      }
-      return true;
-    }
-
-    if (isKey(c, KeyCode::ENTER)) {
-      if (_list.getCount() != 0) {
-        MessageEntry entry{};
-        if (_model->getMessages(_list.getSelected(), 1, &entry) == 1)
-          _model->gotoMsgViewer(entry, MessageScope::all);
-      }
-      return true;
-    }
-
-    return false;
   }
 };
 

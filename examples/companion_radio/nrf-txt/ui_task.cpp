@@ -30,6 +30,18 @@ static bool getContactPrefixByIndex(uint8_t contact_index, uint8_t* out_prefix) 
   return true;
 }
 
+static bool handleKey(UITask* ui, char key) {
+  if (isKey(key, KeyCode::FN_H)) {
+    ui->gotoHome();
+    return true;
+  }
+  if (isKey(key, KeyCode::FN_I)) {
+    ui->toggleScreenInvert();
+    return true;
+  }
+  return false;
+}
+
 // --- Private functions ---
 void UITask::dispatchRender() {
   if (!_display || !_display->isOn())
@@ -159,11 +171,10 @@ void UITask::loop() {
   auto kb = _keyboard.readKeyboard();
   if (kb) {
     if (!wakeScreen()) {
-      // Screen was off, call activate to ready the page.
+      // Screen was off; activate only and swallow the key.
       _curr->activate();
-    }
-    if (isKey(kb, KeyCode::FN_H)) {
-      gotoHome();
+    } else if (handleKey(this, kb)) {
+      // Key handled by global UI shortcut.
     } else if (_prompt.isActive()) {
       _prompt.handleInput(kb);
     } else {
