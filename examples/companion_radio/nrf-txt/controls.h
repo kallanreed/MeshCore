@@ -660,6 +660,10 @@ class MessageList {
       snprintf(tmp, sizeof(tmp), "%s", entry.message);
     }
 
+    display.setColor(DisplayDriver::DARK);
+    display.fillRect(x, y, w, h);
+
+    display.setColor(DisplayDriver::LIGHT);
     display.setTextSize(1);
     if (!entry.read)
       display.fillRect(x, y + 4, 3, 3);
