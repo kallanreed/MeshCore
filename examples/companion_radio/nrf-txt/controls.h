@@ -176,7 +176,7 @@ public:
         _selected = (_selected + 1) % _count;
     } else if (isKey(c, KeyCode::ENTER)) {
       finish(_selected);
-    } else if (isKey(c, KeyCode::ESC)) {
+    } else if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT)) {
       finish(-1);
     }
   }
@@ -1101,6 +1101,9 @@ public:
       case 3:
         model->sendAdvert(true);
         break;
+      case 4:
+        model->toggleCampMode();
+        break;
       default:
         break;
     }
@@ -1114,6 +1117,8 @@ public:
     char tmp[40];
     auto details = _model->getRadioDetails();
 
+    if (_model->isCampModeEnabled())
+      display.drawXbm(202, 2, icon_camp_16, 16, 16);
     if (_model->isBleEnabled())
       display.drawXbm(222, 2, icon_ble_16, 16, 16);
 
@@ -1149,8 +1154,14 @@ public:
     if (!isKey(c, KeyCode::ENTER))
       return false;
 
-    static const char* options[] = { "Reset Stats", "Toggle BLE", "0-Hop Advert", "Flood Advert" };
-    _model->prompt("Radio Options", options, 4, onOptionsSelected, _model);
+    static const char* options[] = {
+      "Reset Stats",
+      "Toggle BLE",
+      "Advert: Zero Hop",
+      "Advert: Flood",
+      "Toggle Camp Mode"
+    };
+    _model->prompt("Radio Options", options, 5, onOptionsSelected, _model);
     return true;
   }
 };

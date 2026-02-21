@@ -126,6 +126,8 @@ public:
   virtual uint32_t getUptimeMin() = 0;
   virtual bool isBleEnabled() = 0;
   virtual void toggleBle() = 0;
+  virtual bool isCampModeEnabled() = 0;
+  virtual void toggleCampMode() = 0;
   virtual void gotoHome() = 0;
   virtual void gotoPrevious() = 0;
   virtual void gotoMsgViewer(const MessageEntry& message, MessageScope scope) = 0;

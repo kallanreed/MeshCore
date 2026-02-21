@@ -118,6 +118,8 @@ public:
   uint32_t getUptimeMin() ;
   bool isBleEnabled() override;
   void toggleBle() override;
+  bool isCampModeEnabled() override;
+  void toggleCampMode() override;
   void gotoHome() override;
   void gotoPrevious() override;
   void gotoMsgViewer(const MessageEntry& message, MessageScope scope) override;

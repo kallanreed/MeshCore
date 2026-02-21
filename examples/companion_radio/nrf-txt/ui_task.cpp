@@ -467,6 +467,15 @@ void UITask::toggleBle() {
   }
 }
 
+bool UITask::isCampModeEnabled() {
+  return _node_prefs->client_repeat != 0;
+}
+
+void UITask::toggleCampMode() {
+  _node_prefs->client_repeat = _node_prefs->client_repeat ? 0 : 1;
+  the_mesh.savePrefs();
+}
+
 void UITask::gotoHome() {
   setCurrent(_home);
   _prev_screen = nullptr;
