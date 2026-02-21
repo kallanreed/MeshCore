@@ -544,8 +544,13 @@ void MyMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packe
     out_frame[i++] = RESP_CODE_CHANNEL_MSG_RECV;
   }
 
-  uint8_t channel_idx = findChannelIdx(channel);
-  out_frame[i++] = channel_idx;
+  int channel_idx = findChannelIdx(channel);
+  if (channel_idx < 0) {
+    MESH_DEBUG_PRINTLN("WARN: dropping channel message for unknown channel.");
+    return;
+  }
+  uint8_t channel_idx_u8 = static_cast<uint8_t>(channel_idx);
+  out_frame[i++] = channel_idx_u8;
   uint8_t path_len = out_frame[i++] = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
 
   out_frame[i++] = TXT_TYPE_PLAIN;
@@ -569,13 +574,13 @@ void MyMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packe
   // Get the channel name from the channel index
   const char *channel_name = "Unknown";
   ChannelDetails channel_details;
-  if (getChannel(channel_idx, channel_details)) {
+  if (getChannel(channel_idx_u8, channel_details)) {
     channel_name = channel_details.name;
   }
   if (_ui) {
     UIMessageMeta meta{};
     meta.kind = UIMessageKind::channel;
-    meta.channel_index = channel_idx;
+    meta.channel_index = channel_idx_u8;
     memset(meta.contact_prefix, 0, sizeof(meta.contact_prefix));
     _ui->newMsg(path_len, channel_name, text, offline_queue_len, meta);
     if (!_prefs.buzzer_quiet) _ui->notify(UIEventType::channelMessage); //buzz if enabled

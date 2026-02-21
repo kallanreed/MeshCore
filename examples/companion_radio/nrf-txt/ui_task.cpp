@@ -201,6 +201,10 @@ uint32_t UITask::getUnreadMsgCount() {
   return _message_buffer.getUnreadCount();
 }
 
+void UITask::markAllMessagesRead() {
+  _message_buffer.markAllRead();
+}
+
 bool UITask::isConnected() {
   return hasConnection();
 }

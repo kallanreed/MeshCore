@@ -801,6 +801,11 @@ public:
   }
 
   bool handleInput(char c) override {
+    if (isKey(c, KeyCode::FN_R)) {
+      _model->markAllMessagesRead();
+      _model->renderAfter(0);
+      return true;
+    }
     if (!isKey(c, KeyCode::ENTER))
       return false;
 

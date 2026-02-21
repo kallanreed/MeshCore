@@ -75,6 +75,7 @@ public:
   // UIViewModel impl
   uint32_t getMsgCount() override;
   uint32_t getUnreadMsgCount() override;
+  void markAllMessagesRead() override;
   bool isConnected() override;
   bool isBuzzerEnabled() override;
   void prompt(
