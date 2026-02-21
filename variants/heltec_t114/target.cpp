@@ -5,6 +5,7 @@
 
 #ifdef ENV_INCLUDE_GPS
 #include <helpers/sensors/MicroNMEALocationProvider.h>
+#include <helpers/RefCountedDigitalPin.h>
 #endif
 
 T114Board board;
@@ -22,7 +23,8 @@ AutoDiscoverRTCClock rtc_clock(fallback_clock);
 
 #if ENV_INCLUDE_GPS
 #include <helpers/sensors/MicroNMEALocationProvider.h>
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1);
+RefCountedDigitalPin vext_power(PIN_3V3_EN);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, GPS_EN, &vext_power);
 EnvironmentSensorManager sensors = EnvironmentSensorManager(nmea);
 #else
 EnvironmentSensorManager sensors;

@@ -20,7 +20,7 @@
 // Power
 
 #define NRF_APM
-#define PIN_3V3_EN              (38)
+#define PIN_3V3_EN              (21)
 
 #define BATTERY_PIN             (4)
 #define ADC_MULTIPLIER          (4.90F)
@@ -77,11 +77,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Builtin LEDs
 
-#define LED_BUILTIN             (35)
-#define PIN_LED                 LED_BUILTIN
-#define LED_RED                 LED_BUILTIN
-#define LED_BLUE                (-1)            // No blue led, prevents Bluefruit flashing the green LED during advertising
-#define LED_PIN                 LED_BUILTIN
+#define LED_BUILTIN             (-1)           // (35) flash_cache.c blinks this on write. Very annoying.
+#define PIN_LED                 (35)
+#define LED_PIN                 PIN_LED
+#define LED_RED                 PIN_LED
+#define LED_BLUE                (-1)            // No blue led, prevents Bluefruit flashing the green LED during advertising.
 
 #define LED_STATE_ON            LOW
 
@@ -126,7 +126,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // GPS
 
-#define GPS_EN                  (21)
+#define GPS_EN                  (34)
 #define GPS_RESET               (38)
 #define PIN_GPS_RX              (39)  // This is for bits going TOWARDS the GPS
 #define PIN_GPS_TX              (37)  // This is for bits going TOWARDS the CPU

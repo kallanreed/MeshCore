@@ -4,6 +4,7 @@
 #include <RadioLib.h>
 #include <T114Board.h>
 #include <helpers/AutoDiscoverRTCClock.h>
+#include <helpers/RefCountedDigitalPin.h>
 #include <helpers/radiolib/CustomSX1262Wrapper.h>
 #include <helpers/radiolib/RadioLibWrappers.h>
 #include <helpers/sensors/EnvironmentSensorManager.h>
@@ -12,7 +13,11 @@
 #ifdef DISPLAY_CLASS
 #include <helpers/ui/MomentaryButton.h>
 #ifdef HELTEC_T114_WITH_DISPLAY
+#ifdef USE_NRF_DISPLAY
+#include <nrf_hardware.h>
+#else
 #include <helpers/ui/ST7789Display.h>
+#endif
 #else
 #include "helpers/ui/NullDisplayDriver.h"
 #endif
@@ -22,6 +27,7 @@ extern T114Board board;
 extern WRAPPER_CLASS radio_driver;
 extern AutoDiscoverRTCClock rtc_clock;
 extern EnvironmentSensorManager sensors;
+extern RefCountedDigitalPin vext_power;
 
 #ifdef DISPLAY_CLASS
 extern DISPLAY_CLASS display;

@@ -8,7 +8,7 @@ class DisplayDriver {
 protected:
   DisplayDriver(int w, int h) { _w = w; _h = h; }
 public:
-  enum Color { DARK=0, LIGHT, RED, GREEN, BLUE, YELLOW, ORANGE }; // on b/w screen, colors will be !=0 synonym of light
+  enum Color { DARK=0, LIGHT, RED, GREEN, BLUE, YELLOW, ORANGE, INVERSE }; // on b/w screen, colors will be !=0 synonym of light
 
   int width() const { return _w; }
   int height() const { return _h; }
@@ -26,6 +26,7 @@ public:
   virtual void fillRect(int x, int y, int w, int h) = 0;
   virtual void drawRect(int x, int y, int w, int h) = 0;
   virtual void drawXbm(int x, int y, const uint8_t* bits, int w, int h) = 0;
+  virtual void drawXbm(int x, int y, const uint8_t* bits, int w, int h, int scale) { drawXbm(x, y, bits, w, h); }
   virtual uint16_t getTextWidth(const char* str) = 0;
   virtual void drawTextCentered(int mid_x, int y, const char* str) {   // helper method (override to optimise)
     int w = getTextWidth(str);

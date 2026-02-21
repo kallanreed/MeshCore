@@ -11,6 +11,8 @@
 
 class T114Board : public NRF52BoardDCDC {
 protected:
+  void enablePeripheralPower();
+  void disablePeripheralPower();
 #ifdef NRF52_POWER_MANAGEMENT
   void initiateShutdown(uint8_t reason) override;
 #endif
@@ -46,14 +48,5 @@ public:
     return "Heltec T114";
   }
 
-  void powerOff() override {
-#ifdef LED_PIN
-    digitalWrite(LED_PIN, HIGH);
-#endif
-#if ENV_INCLUDE_GPS == 1
-    pinMode(GPS_EN, OUTPUT);
-    digitalWrite(GPS_EN, LOW);
-#endif
-    sd_power_system_off();
-  }
+  void powerOff() override;
 };

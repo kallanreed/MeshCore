@@ -2,6 +2,9 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <helpers/RefCountedDigitalPin.h>
+
+extern RefCountedDigitalPin vext_power;
 
 #ifdef NRF52_POWER_MANAGEMENT
 // Static configuration for power management
@@ -13,10 +16,7 @@ const PowerMgtConfig power_config = {
 };
 
 void T114Board::initiateShutdown(uint8_t reason) {
-#if ENV_INCLUDE_GPS == 1
-  pinMode(GPS_EN, OUTPUT);
-  digitalWrite(GPS_EN, LOW);
-#endif
+  disablePeripheralPower();
   digitalWrite(SX126X_POWER_EN, LOW);
 
   bool enable_lpcomp = (reason == SHUTDOWN_REASON_LOW_VOLTAGE ||
@@ -31,6 +31,24 @@ void T114Board::initiateShutdown(uint8_t reason) {
   enterSystemOff(reason);
 }
 #endif // NRF52_POWER_MANAGEMENT
+
+void T114Board::disablePeripheralPower() {
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, LOW);
+}
+
+void T114Board::enablePeripheralPower() {
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, HIGH);
+}
+
+void T114Board::powerOff() {
+#ifdef LED_PIN
+  digitalWrite(LED_PIN, HIGH);
+#endif
+  disablePeripheralPower();
+  sd_power_system_off();
+}
 
 void T114Board::begin() {
   NRF52Board::begin();
@@ -56,4 +74,8 @@ void T114Board::begin() {
 #endif
   digitalWrite(SX126X_POWER_EN, HIGH);
   delay(10); // give sx1262 some time to power up
+
+  // Set up the shared Vext control pin.
+  vext_power.begin();
+  enablePeripheralPower();
 }

@@ -343,6 +343,11 @@ void DataStore::loadChannels(DataStoreHost* host) {
 
         if (!success) break; // EOF
 
+        // Treat empty names as "deleted".
+        if (ch.name[0] == 0) {
+          memset(ch.channel.secret, 0, sizeof(ch.channel.secret));
+        }
+
         if (host->onChannelLoaded(channel_idx, ch)) {
           channel_idx++;
         } else {

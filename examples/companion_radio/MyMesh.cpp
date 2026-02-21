@@ -353,7 +353,7 @@ void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
     AdvertPath* p = advert_paths;
     uint32_t oldest = 0xFFFFFFFF;
     for (int i = 0; i < ADVERT_PATH_TABLE_SIZE; i++) {   // check if already in table, otherwise evict oldest
-      if (memcmp(advert_paths[i].pubkey_prefix, contact.id.pub_key, sizeof(AdvertPath::pubkey_prefix)) == 0) {
+      if (memcmp(advert_paths[i].pub_key, contact.id.pub_key, PUB_KEY_SIZE) == 0) {
         p = &advert_paths[i];   // found
         break;
       }
@@ -363,8 +363,9 @@ void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
       }
     }
 
-    memcpy(p->pubkey_prefix, contact.id.pub_key, sizeof(p->pubkey_prefix));
+    memcpy(p->pub_key, contact.id.pub_key, PUB_KEY_SIZE);
     strcpy(p->name, contact.name);
+    p->type = contact.type;
     p->recv_timestamp = getRTCClock()->getCurrentTime();
     p->path_len = path_len;
     memcpy(p->path, path, p->path_len);
@@ -385,6 +386,39 @@ int MyMesh::getRecentlyHeard(AdvertPath dest[], int max_num) {
     dest[i] = advert_paths[i];
   }
   return max_num;
+}
+
+bool MyMesh::addChatContactFromRecent(const uint8_t* pub_key, const char* name) {
+  if (!pub_key)
+    return false;
+
+  if (lookupContactByPubKey(pub_key, PUB_KEY_SIZE))
+    return false;
+
+  ContactInfo ci{};
+  memcpy(ci.id.pub_key, pub_key, PUB_KEY_SIZE);
+  if (name && name[0]) {
+    StrHelper::strncpy(ci.name, name, sizeof(ci.name));
+  } else {
+    ci.name[0] = 0;
+  }
+  auto now = getRTCClock()->getCurrentTime();
+
+  ci.type = ADV_TYPE_CHAT;
+  ci.flags = 0;
+  ci.out_path_len = -1;
+  ci.shared_secret_valid = false;
+  ci.last_advert_timestamp = now;
+  ci.lastmod = now;
+  ci.gps_lat = 0;
+  ci.gps_lon = 0;
+  ci.sync_since = 0;
+
+  if (!addContact(ci))
+    return false;
+
+  dirty_contacts_expiry = futureMillis(LAZY_CONTACTS_WRITE_DELAY);
+  return true;
 }
 
 void MyMesh::onContactPathUpdated(const ContactInfo &contact) {
@@ -452,10 +486,12 @@ void MyMesh::queueMessage(const ContactInfo &from, uint8_t txt_type, mesh::Packe
   // we only want to show text messages on display, not cli data
   bool should_display = txt_type == TXT_TYPE_PLAIN || txt_type == TXT_TYPE_SIGNED_PLAIN;
   if (should_display && _ui) {
-    _ui->newMsg(path_len, from.name, text, offline_queue_len);
-    if (!_serial->isConnected()) {
-      _ui->notify(UIEventType::contactMessage);
-    }
+    UIMessageMeta meta{};
+    meta.kind = UIMessageKind::contact;
+    meta.channel_index = 0xFF;
+    memcpy(meta.contact_prefix, from.id.pub_key, sizeof(meta.contact_prefix));
+    _ui->newMsg(path_len, from.name, text, offline_queue_len, meta);
+    if (!_prefs.buzzer_quiet) _ui->notify(UIEventType::contactMessage); //buzz if enabled
   }
 #endif
 }
@@ -525,8 +561,13 @@ void MyMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packe
     out_frame[i++] = RESP_CODE_CHANNEL_MSG_RECV;
   }
 
-  uint8_t channel_idx = findChannelIdx(channel);
-  out_frame[i++] = channel_idx;
+  int channel_idx = findChannelIdx(channel);
+  if (channel_idx < 0) {
+    MESH_DEBUG_PRINTLN("WARN: dropping channel message for unknown channel.");
+    return;
+  }
+  uint8_t channel_idx_u8 = static_cast<uint8_t>(channel_idx);
+  out_frame[i++] = channel_idx_u8;
   uint8_t path_len = out_frame[i++] = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
 
   out_frame[i++] = TXT_TYPE_PLAIN;
@@ -553,10 +594,17 @@ void MyMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packe
   // Get the channel name from the channel index
   const char *channel_name = "Unknown";
   ChannelDetails channel_details;
-  if (getChannel(channel_idx, channel_details)) {
+  if (getChannel(channel_idx_u8, channel_details)) {
     channel_name = channel_details.name;
   }
-  if (_ui) _ui->newMsg(path_len, channel_name, text, offline_queue_len);
+  if (_ui) {
+    UIMessageMeta meta{};
+    meta.kind = UIMessageKind::channel;
+    meta.channel_index = channel_idx_u8;
+    memset(meta.contact_prefix, 0, sizeof(meta.contact_prefix));
+    _ui->newMsg(path_len, channel_name, text, offline_queue_len, meta);
+    if (!_prefs.buzzer_quiet) _ui->notify(UIEventType::channelMessage); //buzz if enabled
+  }
 #endif
 }
 
@@ -1556,6 +1604,11 @@ void MyMesh::handleCmdFrame(size_t len) {
     StrHelper::strncpy(channel.name, (char *)&cmd_frame[2], 32);
     memset(channel.channel.secret, 0, sizeof(channel.channel.secret));
     memcpy(channel.channel.secret, &cmd_frame[2 + 32], 16); // NOTE: only 128-bit supported
+    // Treat empty name as a "delete" and clear.
+    if (StrHelper::isBlank(channel.name)) {
+      memset(channel.name, 0, sizeof(channel.name));
+      memset(channel.channel.secret, 0, sizeof(channel.channel.secret));
+    }
     if (setChannel(channel_idx, channel)) {
       saveChannels();
       writeOKFrame();
@@ -1680,7 +1733,7 @@ void MyMesh::handleCmdFrame(size_t len) {
     AdvertPath* found = NULL;
     for (int i = 0; i < ADVERT_PATH_TABLE_SIZE; i++) {
       auto p = &advert_paths[i];
-      if (memcmp(p->pubkey_prefix, pub_key, sizeof(p->pubkey_prefix)) == 0) {
+      if (memcmp(p->pub_key, pub_key, PUB_KEY_SIZE) == 0) {
         found = p;
         break;
       }
@@ -2022,7 +2075,7 @@ void MyMesh::loop() {
 #endif
 }
 
-bool MyMesh::advert() {
+bool MyMesh::advert(bool flood) {
   mesh::Packet* pkt;
   if (_prefs.advert_loc_policy == ADVERT_LOC_NONE) {
     pkt = createSelfAdvert(_prefs.node_name);
@@ -2030,7 +2083,11 @@ bool MyMesh::advert() {
     pkt = createSelfAdvert(_prefs.node_name, sensors.node_lat, sensors.node_lon);
   }
   if (pkt) {
-    sendZeroHop(pkt);
+    if (flood) {
+      sendFlood(pkt);
+    } else {
+      sendZeroHop(pkt);
+    }
     return true;
   } else {
     return false;
