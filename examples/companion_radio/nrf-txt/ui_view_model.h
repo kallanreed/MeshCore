@@ -17,6 +17,8 @@ struct DateTime2 {
   uint8_t hour;
   uint8_t minute;
   uint8_t second;
+  int8_t tz_offset;
+  bool is_valid;
 };
 
 struct RadioDetails {
@@ -133,6 +135,7 @@ public:
   virtual void toggleScreenInvert() = 0;
   virtual bool sendAdvert(bool flood=false) = 0;
   virtual void setGpsEnabled(bool enabled) = 0;
+  virtual void setTzOffset(int8_t offset_hours) = 0;
   virtual Position getPosition() = 0;
   virtual DateTime2 getDateTime() = 0;
   virtual RadioDetails getRadioDetails() = 0;

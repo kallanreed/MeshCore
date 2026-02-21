@@ -2,8 +2,10 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <helpers/RefCountedDigitalPin.h>
 
-#ifdef NRF52_POWER_MANAGEMENT
+extern RefCountedDigitalPin vext_power;
+
 // Static configuration for power management
 // Values come from variant.h defines
 const PowerMgtConfig power_config = {
@@ -13,10 +15,7 @@ const PowerMgtConfig power_config = {
 };
 
 void T114Board::initiateShutdown(uint8_t reason) {
-#if ENV_INCLUDE_GPS == 1
-  pinMode(GPS_EN, OUTPUT);
-  digitalWrite(GPS_EN, LOW);
-#endif
+  disablePeripheralPower();
   digitalWrite(SX126X_POWER_EN, LOW);
 
   bool enable_lpcomp = (reason == SHUTDOWN_REASON_LOW_VOLTAGE ||
@@ -30,30 +29,67 @@ void T114Board::initiateShutdown(uint8_t reason) {
 
   enterSystemOff(reason);
 }
-#endif // NRF52_POWER_MANAGEMENT
+
+void T114Board::disablePeripheralPower() {
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, LOW);
+}
+
+void T114Board::enablePeripheralPower() {
+  pinMode(PIN_3V3_EN, OUTPUT);
+  digitalWrite(PIN_3V3_EN, HIGH);
+}
+
+void T114Board::powerOff() {
+  digitalWrite(LED_PIN, HIGH);
+  disablePeripheralPower();
+  sd_power_system_off();
+}
+
+void T114Board::onBeforeTransmit() {
+  digitalWrite(P_LORA_TX_LED, LOW);   // turn TX LED on
+}
+
+void T114Board::onAfterTransmit() {
+  digitalWrite(P_LORA_TX_LED, HIGH);   // turn TX LED off
+}
+
+uint16_t T114Board::getBattMilliVolts() {
+  int adc_value = 0;
+  analogReadResolution(ADC_RESOLUTION);
+  analogReference(AR_INTERNAL_3_0);
+  pinMode(PIN_BAT_CTL, OUTPUT); // battery adc can be read only ctrl pin 6 set to high
+  digitalWrite(PIN_BAT_CTL, 1);
+
+  delay(10);
+  adc_value = analogRead(PIN_VBAT_READ);
+  digitalWrite(PIN_BAT_CTL, 0);
+
+  // 3000mV / 4096 (12 bits) = .732mV/bit
+  constexpr auto adc_scale = ADC_MULTIPLIER * AREF_VOLTAGE * 1000.0f / (1 << ADC_RESOLUTION);
+  return (uint16_t)(adc_value * adc_scale);
+}
 
 void T114Board::begin() {
   NRF52Board::begin();
 
   pinMode(PIN_VBAT_READ, INPUT);
 
-#if defined(PIN_BOARD_SDA) && defined(PIN_BOARD_SCL)
   Wire.setPins(PIN_BOARD_SDA, PIN_BOARD_SCL);
-#endif
 
   Wire.begin();
 
-#ifdef P_LORA_TX_LED
   pinMode(P_LORA_TX_LED, OUTPUT);
   digitalWrite(P_LORA_TX_LED, HIGH);
-#endif
 
   pinMode(SX126X_POWER_EN, OUTPUT);
-#ifdef NRF52_POWER_MANAGEMENT
   // Boot voltage protection check (may not return if voltage too low)
   // We need to call this after we configure SX126X_POWER_EN as output but before we pull high
   checkBootVoltage(&power_config);
-#endif
   digitalWrite(SX126X_POWER_EN, HIGH);
   delay(10); // give sx1262 some time to power up
+
+  // Set up the shared Vext control pin.
+  vext_power.begin();
+  enablePeripheralPower();
 }

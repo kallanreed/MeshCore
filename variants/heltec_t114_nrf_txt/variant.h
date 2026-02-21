@@ -1,9 +1,3 @@
-/*
- * variant.h
- * Copyright (C) 2023 Seeed K.K.
- * MIT License
- */
-
 #pragma once
 
 #include "WVariant.h"
@@ -14,18 +8,18 @@
 #define USE_LFXO    // 32.768 kHz crystal oscillator
 #define VARIANT_MCK (64000000ul)
 
-#define WIRE_INTERFACES_COUNT 	(2)
-
 ////////////////////////////////////////////////////////////////////////////////
 // Power
 
 #define NRF_APM
-#define PIN_3V3_EN              (38)
+#define PIN_3V3_EN              (21)
 
-#define BATTERY_PIN             (4)
+#define PIN_VBAT_READ           (4)
+#define PIN_BAT_CTL             (6)
+#define BATTERY_PIN             PIN_VBAT_READ
 #define ADC_MULTIPLIER          (4.90F)
 
-#define ADC_RESOLUTION          (14)
+#define ADC_RESOLUTION          (12)
 #define BATTERY_SENSE_RES       (12)
 
 #define AREF_VOLTAGE            (3.0)
@@ -58,30 +52,36 @@
 ////////////////////////////////////////////////////////////////////////////////
 // I2C pin definition
 
-#define PIN_WIRE_SDA            (26) // P0.26
-#define PIN_WIRE_SCL            (27) // P0.27
+#define WIRE_INTERFACES_COUNT 	(1)
 
-#define PIN_WIRE1_SDA            (7) // P0.8
-#define PIN_WIRE1_SCL            (8) // P0.7
+#define PIN_WIRE_SDA            (16) // P0.16
+#define PIN_WIRE_SCL            (13) // P0.13
+
+#define PIN_BOARD_SDA           PIN_WIRE_SDA
+#define PIN_BOARD_SCL           PIN_WIRE_SCL
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI pin definition
 
 #define SPI_INTERFACES_COUNT    (2)
+#define PIN_SPI_NSS             (24)
 
 #define PIN_SPI_MISO            (23)
 #define PIN_SPI_MOSI            (22)
 #define PIN_SPI_SCK             (19)
-#define PIN_SPI_NSS             (24)
+
+#define PIN_SPI1_MISO           (43)
+#define PIN_SPI1_MOSI           (41)
+#define PIN_SPI1_SCK            (40)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builtin LEDs
 
-#define LED_BUILTIN             (35)
-#define PIN_LED                 LED_BUILTIN
-#define LED_RED                 LED_BUILTIN
-#define LED_BLUE                (-1)            // No blue led, prevents Bluefruit flashing the green LED during advertising
-#define LED_PIN                 LED_BUILTIN
+#define LED_BUILTIN             (-1)           // (35) flash_cache.c blinks this on write. Very annoying.
+#define PIN_LED                 (35)
+#define LED_PIN                 PIN_LED
+#define LED_RED                 PIN_LED
+#define LED_BLUE                (-1)           // No blue led, prevents Bluefruit flashing the green LED during advertising.
 
 #define LED_STATE_ON            LOW
 
@@ -99,40 +99,52 @@
 
 #define PIN_USER_BTN            BUTTON_PIN
 
-#define EXTERNAL_FLASH_DEVICES MX25R1635F
+#define EXTERNAL_FLASH_DEVICES  MX25R1635F
 #define EXTERNAL_FLASH_USE_QSPI
 
 ////////////////////////////////////////////////////////////////////////////////
 // Lora
 
 #define USE_SX1262
-#define LORA_CS                 (24)
+#define LORA_CS                 PIN_SPI_NSS
 #define SX126X_DIO1             (20)
 #define SX126X_BUSY             (17)
 #define SX126X_RESET            (25)
 #define SX126X_DIO2_AS_RF_SWITCH
 #define SX126X_DIO3_TCXO_VOLTAGE 1.8
+#define SX126X_POWER_EN         (7)
+#define SX126X_CURRENT_LIMIT    (140)
+#define SX126X_RX_BOOSTED_GAIN  (1)
 
-#define PIN_SPI1_MISO           (43)
-#define PIN_SPI1_MOSI           (41)
-#define PIN_SPI1_SCK            (40)
+#define P_LORA_NSS              PIN_SPI_NSS
+#define P_LORA_DIO_1            SX126X_DIO1
+#define P_LORA_RESET            SX126X_RESET
+#define P_LORA_BUSY             SX126X_BUSY
+#define P_LORA_SCLK             (19)
+#define P_LORA_MOSI             (22)
+#define P_LORA_MISO             (23)
+#define P_LORA_TX_LED           (35)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Buzzer
 
-// #define PIN_BUZZER              (46)
-
+// NB: Needs to be defined on the command line.
+//#define PIN_BUZZER              (33)
 
 ////////////////////////////////////////////////////////////////////////////////
 // GPS
 
-#define GPS_EN                  (21)
+#define GPS_EN                  (34)
 #define GPS_RESET               (38)
 #define PIN_GPS_RX              (39)  // This is for bits going TOWARDS the GPS
 #define PIN_GPS_TX              (37)  // This is for bits going TOWARDS the CPU
+#define PIN_GPS_EN              GPS_EN
+#define PIN_GPS_RESET           GPS_RESET
+#define PIN_GPS_RESET_ACTIVE    LOW
 
 ////////////////////////////////////////////////////////////////////////////////
 // TFT
+
 #define PIN_TFT_SCL             (40)
 #define PIN_TFT_SDA             (41)
 #define PIN_TFT_RST             (2)

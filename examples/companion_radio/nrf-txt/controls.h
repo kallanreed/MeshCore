@@ -1226,6 +1226,19 @@ public:
     auto dt = _model->getDateTime();
     auto center_x = display.width() / 2;
 
+    // Valid/TZ indicator.
+    display.setTextSize(1);
+    if (dt.is_valid) {
+      if (dt.tz_offset == 0) {
+        strcpy(tmp, "UTC");
+      } else {
+        sprintf(tmp, "UTC%+d", dt.tz_offset);
+      }
+      display.drawTextRightAlign(display.width() - 3, 5, tmp);
+    } else {
+      display.drawTextRightAlign(display.width() - 3, 5, "UNSET");
+    }
+
     _segs[0].set(dt.hour / 10);
     _segs[1].set(dt.hour % 10);
     _segs[2].set(dt.minute / 10);
@@ -1244,8 +1257,44 @@ public:
       display.fillRect(159, 75, 3, 3);
     }
 
+    // Top date.
+    display.setTextSize(2);
     sprintf(tmp, "%d/%d/%d", dt.month, dt.day, dt.year);
     display.drawTextCentered(center_x, 5, tmp);
+  }
+
+  bool handleInput(char c) override {
+    if (!isKey(c, KeyCode::ENTER))
+      return false;
+
+    static const char* options[] = { "Set Timezone" };
+    _model->prompt("Clock", options, 1, onClockOptions, _model);
+    return true;
+  }
+
+private:
+  static void onClockOptions(void* context, int result) {
+    if (result != 0)
+      return;
+
+    auto* model = static_cast<UIViewModel*>(context);
+    if (!model)
+      return;
+
+    static char tz_buf[8];
+    sprintf(tz_buf, "%d", model->getDateTime().tz_offset);
+    model->promptText("TZ Offset", tz_buf, sizeof(tz_buf), onTzPrompt, model);
+  }
+
+  static void onTzPrompt(void* context, const char* text) {
+    if (!text || !*text)
+      return;
+
+    auto* model = static_cast<UIViewModel*>(context);
+    int offset = atoi(text);
+    if (offset < -12) offset = -12;
+    if (offset > 14) offset = 14;
+    model->setTzOffset((int8_t)offset);
   }
 };
 

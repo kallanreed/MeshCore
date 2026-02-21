@@ -72,8 +72,9 @@ public:
 */
 class RTCClock {
   uint32_t last_unique;
+  bool valid;
 protected:
-  RTCClock() { last_unique = 0; }
+  RTCClock() { last_unique = 0; valid = false; }
 
 public:
   /**
@@ -90,6 +91,9 @@ public:
    * override in classes that need to periodically update internal state
    */
   virtual void tick() { /* no op */}
+
+  bool isValid() const { return valid; }
+  void setValid(bool is_valid = true) { valid = is_valid; }
 
   uint32_t getCurrentTimeUnique() {
     uint32_t t = getCurrentTime();

@@ -101,7 +101,7 @@ void UITask::begin(
   _node_prefs = node_prefs;
 
   _keyboard.begin();
-  _buzzer.begin();
+  _buzzer.begin(false);
   _buzzer.quiet(_node_prefs->buzzer_quiet);
 
   wakeScreen();
@@ -548,16 +548,23 @@ void UITask::setGpsEnabled(bool enabled) {
   }
 }
 
+void UITask::setTzOffset(int8_t offset_hours) {
+  _node_prefs->tz_offset = constrain(offset_hours, -12, 14);
+  the_mesh.savePrefs();
+}
+
 Position UITask::getPosition() {
   Position p{};
   LocationProvider* nmea = sensors.getLocationProvider();
 
   if (nmea) {
     p.has_fix = nmea->isValid();
-    p.latitude = nmea->getLatitude() / 1000000.0;
-    p.longitude = nmea->getLongitude() / 1000000.0;
-    p.elevation = nmea->getAltitude() / 1000.0; // m
-    p.satellites = nmea->satellitesCount();
+    if (p.has_fix) {
+      p.latitude = nmea->getLatitude() / 1000000.0;
+      p.longitude = nmea->getLongitude() / 1000000.0;
+      p.elevation = nmea->getAltitude() / 1000.0; // m
+      p.satellites = nmea->satellitesCount();
+    }
     p.enabled = nmea->isEnabled();
   }
 
@@ -572,8 +579,9 @@ DateTime2 UITask::getDateTime() {
   }
 
   uint32_t epoch = _rtc->getCurrentTime();
-  // TODO: TZ config with DST
-  int32_t offset = -8 * 60 * 60;
+  out.tz_offset = _node_prefs ? _node_prefs->tz_offset : 0;
+  int32_t offset = ((int32_t)out.tz_offset) * 60 * 60;
+  out.is_valid = _rtc->isValid();
 
   uint32_t seconds = epoch + offset;
   out.second = seconds % 60;

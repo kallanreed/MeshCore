@@ -129,6 +129,7 @@ public :
             if (_time_sync_needed && time_valid > 2) {
                 if (_clock != NULL) {
                     _clock->setCurrentTime(getTimestamp());
+                    _clock->setValid();
                     _time_sync_needed = false;
                 }
             }

@@ -127,6 +127,7 @@ public:
   void toggleScreenInvert() override;
   bool sendAdvert(bool flood=false) override;
   void setGpsEnabled(bool enabled) override;
+  void setTzOffset(int8_t offset_hours) override;
   Position getPosition() override;
   DateTime2 getDateTime() override;
   RadioDetails getRadioDetails() override;
