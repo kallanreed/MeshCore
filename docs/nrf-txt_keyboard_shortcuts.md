@@ -15,7 +15,7 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 - `UP`: Move selection up.
 - `DOWN`: Move selection down.
 - `ENTER`: Select/confirm.
-- `ESC`: Cancel/close prompt.
+- `ESC` or `LEFT`: Cancel/close prompt.
 
 ## Home Page
 - `FN+R`: Mark all messages read.
@@ -52,7 +52,7 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 - `BACKSPACE` or `DEL`: Delete character before cursor.
 
 ## Radio Page
-- `ENTER`: Open Radio Options prompt (Reset Stats, Toggle BLE, 0-Hop Advert, Flood Advert).
+- `ENTER`: Open Radio Options prompt (Reset Stats, Toggle BLE, Advert: Zero Hop, Advert: Flood, Toggle Camp Mode).
 
 ## GPS Page
 - `ENTER`: Open GPS Sensor prompt (Enable, Disable).
