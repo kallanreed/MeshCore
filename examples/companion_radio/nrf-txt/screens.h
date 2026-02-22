@@ -54,6 +54,18 @@ public:
   void activate() override;
 };
 
+class ChartScreen : public UIScreen
+{
+  UIViewModel* _model;
+  Bme680Metric _metric = Bme680Metric::temperature;
+
+public:
+  ChartScreen(UIViewModel* model);
+  void setMetric(Bme680Metric metric);
+  int render(DisplayDriver& display) override;
+  bool handleInput(char c) override;
+};
+
 class TextInputScreen : public UIScreen
 {
   UIViewModel* _model;
@@ -81,7 +93,7 @@ class HomeScreen : public UIScreen
 {
   UIViewModel* _model;
   uint8_t _page = 0;
-  std::array<UIPage*, 8> _pages;
+  std::array<UIPage*, 9> _pages;
   BatteryIndicator _batt = BatteryIndicator(205, 118);
 
   UIPage* current() { return _pages[_page]; }

@@ -55,6 +55,7 @@ static void formatOutgoingMessage(char* out, size_t out_size, const char* text) 
   translateUTF8ToBlocks(out, prefixed, out_size);
 }
 
+
 // --- Private functions ---
 void UITask::dispatchRender() {
   if (!_display || !_display->isOn())
@@ -63,7 +64,6 @@ void UITask::dispatchRender() {
   if (millis() < _next_render || !_curr)
     return;
 
-  // TODO: alert handling. Make a control.
   _display->startFrame();
   auto delay_ms = _curr->render(*_display);
   if (_prompt.isActive()) {
@@ -76,6 +76,10 @@ void UITask::dispatchRender() {
   }
   renderAfter(delay_ms);
   _display->endFrame();
+}
+
+void UITask::updateBme680History() {
+  _bme680_history.tick(millis(), getBme680Data());
 }
 
 void UITask::setCurrent(UIScreen* screen) {
@@ -125,6 +129,7 @@ void UITask::begin(
   _msg_viewer = new MsgViewer(this);
   _thread_viewer = new ThreadScreen(this);
   _text_input = new TextInputScreen(this);
+  _sensor_chart = new ChartScreen(this);
   setCurrent(_splash);
 }
 
@@ -194,6 +199,8 @@ void UITask::loop() {
       _curr->handleInput(kb);
     }
   }
+
+  updateBme680History();
 
   if (_buzzer.isPlaying())
     _buzzer.loop();
@@ -651,6 +658,34 @@ RadioDetails UITask::getRadioDetails() {
   details.packets_sent = radio_driver.getPacketsSent();
   details.packets_received = radio_driver.getPacketsRecv();
   return details;
+}
+
+Bme680Data UITask::getBme680Data() {
+  uint32_t now = millis();
+  if (now < _bme680_next_refresh)
+    return _bme680_cache;
+
+  _bme680_next_refresh = now + 5000;
+  Bme680Data data{};
+
+  if (_sensors) {
+    _sensors_lpp.reset();
+    if (_sensors->querySensors(TELEM_PERM_ENVIRONMENT, _sensors_lpp)) {
+      decodeBme680FromLpp(_sensors_lpp.getBuffer(), _sensors_lpp.getSize(), data);
+    }
+  }
+
+  _bme680_cache = data;
+  return _bme680_cache;
+}
+
+uint8_t UITask::getBme680History(Bme680Metric metric, float* out, uint8_t max) {
+  return _bme680_history.get(metric, out, max);
+}
+
+void UITask::gotoSensorChart(Bme680Metric metric) {
+  static_cast<ChartScreen*>(_sensor_chart)->setMetric(metric);
+  setCurrent(_sensor_chart);
 }
 
 void UITask::resetRadioStats() {

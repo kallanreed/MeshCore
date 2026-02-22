@@ -76,7 +76,6 @@ void T114Board::begin() {
   pinMode(PIN_VBAT_READ, INPUT);
 
   Wire.setPins(PIN_BOARD_SDA, PIN_BOARD_SCL);
-
   Wire.begin();
 
   pinMode(P_LORA_TX_LED, OUTPUT);
@@ -87,9 +86,11 @@ void T114Board::begin() {
   // We need to call this after we configure SX126X_POWER_EN as output but before we pull high
   checkBootVoltage(&power_config);
   digitalWrite(SX126X_POWER_EN, HIGH);
-  delay(10); // give sx1262 some time to power up
 
   // Set up the shared Vext control pin.
   vext_power.begin();
   enablePeripheralPower();
+
+  // give peripherals some time to power up.
+  delay(10); 
 }

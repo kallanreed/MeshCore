@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "sensor.h"
 
 struct Position {
   float latitude;
@@ -141,6 +142,9 @@ public:
   virtual Position getPosition() = 0;
   virtual DateTime2 getDateTime() = 0;
   virtual RadioDetails getRadioDetails() = 0;
+  virtual Bme680Data getBme680Data() = 0;
+  virtual uint8_t getBme680History(Bme680Metric metric, float* out, uint8_t max) = 0;
+  virtual void gotoSensorChart(Bme680Metric metric) = 0;
   virtual void resetRadioStats() = 0;
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;

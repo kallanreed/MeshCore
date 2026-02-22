@@ -2,6 +2,7 @@
 #include "../MyMesh.h"
 #include "keys.h"
 #include "shared.h"
+#include "utils.h"
 #include "ui_task.h"
 #include <stdio.h>
 #include <string.h>
@@ -316,6 +317,115 @@ bool ThreadScreen::handleInput(char c) {
   return false;
 }
 
+// --- ChartScreen ---
+ChartScreen::ChartScreen(UIViewModel* model) : _model(model) {}
+
+void ChartScreen::setMetric(Bme680Metric metric) {
+  _metric = metric;
+}
+
+static const char* metricTitle(Bme680Metric metric) {
+  switch (metric) {
+    case Bme680Metric::temperature: return "Temp (F)";
+    case Bme680Metric::humidity: return "Humidity (%)";
+    case Bme680Metric::pressure: return "Pressure (inHg)";
+    case Bme680Metric::gas: return "Gas (ohm)";
+    default: return "Sensor";
+  }
+}
+
+static float convertMetric(Bme680Metric metric, float value) {
+  switch (metric) {
+    case Bme680Metric::temperature: return Utils::toF(value);
+    case Bme680Metric::pressure: return Utils::toInHg(value);
+    default: return value;
+  }
+}
+
+static void formatMetricValue(char* out, size_t out_size, Bme680Metric metric, float value) {
+  if (!out || out_size == 0)
+    return;
+  switch (metric) {
+    case Bme680Metric::temperature:
+      snprintf(out, out_size, "%.0f", value);
+      break;
+    case Bme680Metric::humidity:
+      snprintf(out, out_size, "%.1f", value);
+      break;
+    case Bme680Metric::pressure:
+      snprintf(out, out_size, "%.2f", value);
+      break;
+    case Bme680Metric::gas:
+      snprintf(out, out_size, "%.0f", value);
+      break;
+    default:
+      snprintf(out, out_size, "%.2f", value);
+      break;
+  }
+}
+
+int ChartScreen::render(DisplayDriver& display) {
+  display.setTextSize(2);
+  display.setColor(DisplayDriver::LIGHT);
+  display.drawTextLeftAlign(3, 2, metricTitle(_metric));
+  display.drawRect(0, 20, display.width(), 1);
+
+  float samples[Bme680HistoryStore::kHistorySize];
+  uint8_t count = _model->getBme680History(_metric, samples, sizeof(samples) / sizeof(samples[0]));
+  if (count == 0) {
+    display.drawTextCentered(display.width() / 2, 70, "No data");
+    return 1000;
+  }
+
+  float min_v = convertMetric(_metric, samples[0]);
+  float max_v = min_v;
+  for (uint8_t i = 1; i < count; i++) {
+    float v = convertMetric(_metric, samples[i]);
+    if (v < min_v) min_v = v;
+    if (v > max_v) max_v = v;
+  }
+  if (min_v == max_v) {
+    min_v -= 1.0f;
+    max_v += 1.0f;
+  }
+
+  int chart_x = 8;
+  int chart_y = 30;
+  int chart_w = display.width() - 16;
+  int chart_h = 80;
+  display.drawRect(chart_x, chart_y, chart_w, chart_h);
+
+  for (uint8_t i = 1; i < count; i++) {
+    float v0 = convertMetric(_metric, samples[i - 1]);
+    float v1 = convertMetric(_metric, samples[i]);
+    int x0 = chart_x + ((chart_w - 2) * (i - 1)) / (count - 1) + 1;
+    int x1 = chart_x + ((chart_w - 2) * i) / (count - 1) + 1;
+    int y0 = chart_y + chart_h - 2 - (int)((v0 - min_v) * (chart_h - 2) / (max_v - min_v));
+    int y1 = chart_y + chart_h - 2 - (int)((v1 - min_v) * (chart_h - 2) / (max_v - min_v));
+    display.drawRect(x0, y0, 1, 1);
+    display.drawRect(x1, y1, 1, 1);
+  }
+
+  display.setTextSize(1);
+  char tmp[24];
+  char value[12];
+  formatMetricValue(value, sizeof(value), _metric, min_v);
+  snprintf(tmp, sizeof(tmp), "min %s", value);
+  display.drawTextLeftAlign(3, 115, tmp);
+  formatMetricValue(value, sizeof(value), _metric, max_v);
+  snprintf(tmp, sizeof(tmp), "max %s", value);
+  display.drawTextRightAlign(display.width() - 3, 115, tmp);
+  return 1000;
+}
+
+bool ChartScreen::handleInput(char c) {
+  if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT)) {
+    _model->gotoPrevious();
+    return true;
+  }
+  return false;
+}
+
 // --- TextInputScreen ---
 TextInputScreen::TextInputScreen(UIViewModel* model)
   : _model(model) {
@@ -471,6 +581,7 @@ static ChannelPage channel_page = ChannelPage(view_model);
 static RadioPage radio_page = RadioPage(view_model);
 static GpsPage gps_page = GpsPage(view_model);
 static ClockPage clock_page = ClockPage(view_model);
+static SensorPage sensor_page = SensorPage(view_model);
 static PowerPage power_page = PowerPage(view_model);
 
 // --- HomeScreen ---
@@ -482,7 +593,8 @@ HomeScreen::HomeScreen(UIViewModel* model) : _model(model) {
   _pages[4] = &radio_page;
   _pages[5] = &gps_page;
   _pages[6] = &clock_page;
-  _pages[7] = &power_page;
+  _pages[7] = &sensor_page;
+  _pages[8] = &power_page;
 
   current()->activate();
 }

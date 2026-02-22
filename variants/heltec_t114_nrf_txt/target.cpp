@@ -7,17 +7,14 @@
 #include <helpers/RefCountedDigitalPin.h>
 
 T114Board board;
+RefCountedDigitalPin vext_power(PIN_3V3_EN);
 
 RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, SPI);
-
 WRAPPER_CLASS radio_driver(radio, board);
 
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-
-RefCountedDigitalPin vext_power(PIN_3V3_EN);
-
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, GPS_EN, &vext_power);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock, GPS_RESET, GPS_EN);
 EnvironmentSensorManager sensors = EnvironmentSensorManager(nmea);
 
 DISPLAY_CLASS display;

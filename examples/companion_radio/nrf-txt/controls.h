@@ -6,6 +6,7 @@
 #include "icons.h"
 #include "keys.h"
 #include "shared.h"
+#include "utils.h"
 #include "ui_view_model.h"
 
 // A 7-segment display UI element.
@@ -1358,6 +1359,110 @@ public:
 
 private:
   bool _invert = false;
+};
+
+class SensorPage : public UIPage {
+public:
+  SensorPage(UIViewModel* model) : UIPage(model) {}
+
+  const uint8_t* getIcon() override {
+    return icon_chart;
+  }
+
+  void renderPreview(DisplayDriver& display) override {
+    char tmp[32];
+    auto data = _model->getBme680Data();
+
+    display.setTextSize(2);
+    display.drawTextLeftAlign(3, 5, "BME680");
+
+    if (!data.available) {
+      display.drawTextLeftAlign(3, 35, "No data");
+      return;
+    }
+
+    display.setTextSize(2);
+    char value[16];
+    formatTemp(value, sizeof(value), data.temperature);
+    drawMetric(display, 30, 0, "T:", data.has_temperature, value);
+
+    formatHumidity(value, sizeof(value), data.humidity);
+    drawMetric(display, 50, 1, "H:", data.has_humidity, value);
+
+    formatPressure(value, sizeof(value), data.pressure);
+    drawMetric(display, 70, 2, "P:", data.has_pressure, value);
+
+    formatGas(value, sizeof(value), data.gas_resistance);
+    drawMetric(display, 90, 3, "G:", data.has_gas, value);
+  }
+
+  bool handleInput(char c) override {
+    if (isKey(c, KeyCode::UP)) {
+      _selected = (_selected + 3) % 4;
+      return true;
+    }
+    if (isKey(c, KeyCode::DOWN)) {
+      _selected = (_selected + 1) % 4;
+      return true;
+    }
+    if (isKey(c, KeyCode::ENTER)) {
+      _model->gotoSensorChart(static_cast<Bme680Metric>(_selected));
+      return true;
+    }
+    return false;
+  }
+
+private:
+  uint8_t _selected = 0;
+
+  static void formatTemp(char* out, size_t out_size, float c) {
+    if (!out || out_size == 0)
+      return;
+    snprintf(out, out_size, "%.0fF", Utils::toF(c));
+  }
+
+  static void formatHumidity(char* out, size_t out_size, float h) {
+    if (!out || out_size == 0)
+      return;
+    snprintf(out, out_size, "%.1f%%", h);
+  }
+
+  static void formatPressure(char* out, size_t out_size, float hpa) {
+    if (!out || out_size == 0)
+      return;
+    snprintf(out, out_size, "%.2finHg", Utils::toInHg(hpa));
+  }
+
+  static void formatGas(char* out, size_t out_size, float ohms) {
+    if (!out || out_size == 0)
+      return;
+    if (ohms <= 0.0f) {
+      snprintf(out, out_size, "n/a");
+      return;
+    }
+    if (ohms >= 1000.0f) {
+      snprintf(out, out_size, "%.1fkohm", ohms / 1000.0f);
+    } else {
+      snprintf(out, out_size, "%.0fohm", ohms);
+    }
+  }
+
+  void drawMetric(
+    DisplayDriver& display,
+    int y,
+    uint8_t index,
+    const char* label,
+    bool has_value,
+    const char* value) {
+    char line[32];
+    const char* prefix = (index == _selected) ? "> " : "  ";
+    if (has_value) {
+      snprintf(line, sizeof(line), "%s%s %s", prefix, label, value);
+    } else {
+      snprintf(line, sizeof(line), "%s%s --", prefix, label);
+    }
+    display.drawTextLeftAlign(3, y, line);
+  }
 };
 
 class PowerPage : public UIPage {

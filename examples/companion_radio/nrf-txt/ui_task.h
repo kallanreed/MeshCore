@@ -10,6 +10,8 @@
 #include <helpers/ui/buzzer.h>
 #include <helpers/ui/DisplayDriver.h>
 #include <helpers/ui/UIScreen.h>
+#include <CayenneLPP.h>
+#include "sensor.h"
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
 #include "nrf_hardware.h"
@@ -23,6 +25,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   DisplayDriver* _display = nullptr;
   SensorManager* _sensors = nullptr;
   NodePrefs* _node_prefs = nullptr;
+  CayenneLPP _sensors_lpp;
   genericBuzzer _buzzer;
   CardKB _keyboard = CardKB(&vext_power);
 
@@ -36,12 +39,16 @@ class UITask : public AbstractUITask, public UIViewModel {
   float _batt_percent = 0;
   MessageBuffer _message_buffer;
   bool _invert_screen = false;
+  Bme680Data _bme680_cache = {};
+  uint32_t _bme680_next_refresh = 0;
+  Bme680HistoryStore _bme680_history;
 
   UIScreen* _splash;
   UIScreen* _home;
   UIScreen* _msg_viewer;
   UIScreen* _thread_viewer;
   UIScreen* _text_input;
+  UIScreen* _sensor_chart;
   UIScreen* _curr;
   UIScreen* _prev_screen;
   MenuPrompt _prompt;
@@ -50,10 +57,12 @@ class UITask : public AbstractUITask, public UIViewModel {
   void setCurrent(UIScreen* screen);
   bool wakeScreen();
   void checkAutoOff();
+  void updateBme680History();
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
     : AbstractUITask(board, serial)
+    , _sensors_lpp(128)
   { }
 
   void begin(
@@ -133,6 +142,9 @@ public:
   Position getPosition() override;
   DateTime2 getDateTime() override;
   RadioDetails getRadioDetails() override;
+  Bme680Data getBme680Data() override;
+  uint8_t getBme680History(Bme680Metric metric, float* out, uint8_t max) override;
+  void gotoSensorChart(Bme680Metric metric) override;
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
