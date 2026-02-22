@@ -29,6 +29,8 @@ public:
   void clear();
   void tick(uint32_t now_ms, const Bme680Data& data);
   uint8_t get(Bme680Metric metric, float* out, uint8_t max) const;
+  bool needsSample(uint32_t now_ms) const { return now_ms >= _next_sample; }
+  Bme680Data latest() const { return _latest; }
 
 private:
   struct History {
@@ -38,6 +40,7 @@ private:
   };
 
   uint32_t _next_sample = 0;
+  Bme680Data _latest = {};
   History _temp;
   History _humidity;
   History _pressure;

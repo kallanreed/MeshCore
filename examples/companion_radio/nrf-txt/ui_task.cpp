@@ -79,7 +79,23 @@ void UITask::dispatchRender() {
 }
 
 void UITask::updateBme680History() {
-  _bme680_history.tick(millis(), getBme680Data());
+  uint32_t now = millis();
+  if (!_bme680_history.needsSample(now))
+    return;
+
+  Bme680Data data = readBme680Data();
+  _bme680_history.tick(now, data);
+}
+
+Bme680Data UITask::readBme680Data() {
+  Bme680Data data{};
+  if (_sensors) {
+    _sensors_lpp.reset();
+    if (_sensors->querySensors(TELEM_PERM_ENVIRONMENT, _sensors_lpp)) {
+      decodeBme680FromLpp(_sensors_lpp.getBuffer(), _sensors_lpp.getSize(), data);
+    }
+  }
+  return data;
 }
 
 void UITask::setCurrent(UIScreen* screen) {
@@ -661,31 +677,16 @@ RadioDetails UITask::getRadioDetails() {
 }
 
 Bme680Data UITask::getBme680Data() {
-  uint32_t now = millis();
-  if (now < _bme680_next_refresh)
-    return _bme680_cache;
-
-  _bme680_next_refresh = now + 5000;
-  Bme680Data data{};
-
-  if (_sensors) {
-    _sensors_lpp.reset();
-    if (_sensors->querySensors(TELEM_PERM_ENVIRONMENT, _sensors_lpp)) {
-      decodeBme680FromLpp(_sensors_lpp.getBuffer(), _sensors_lpp.getSize(), data);
-    }
-  }
-
-  _bme680_cache = data;
-  return _bme680_cache;
+  return _bme680_history.latest();
 }
 
 uint8_t UITask::getBme680History(Bme680Metric metric, float* out, uint8_t max) {
   return _bme680_history.get(metric, out, max);
 }
 
-void UITask::gotoSensorChart(Bme680Metric metric) {
-  static_cast<ChartScreen*>(_sensor_chart)->setMetric(metric);
+void UITask::gotoChart(ChartConfig* config) {
   setCurrent(_sensor_chart);
+  static_cast<ChartScreen*>(_sensor_chart)->setConfig(config);
 }
 
 void UITask::resetRadioStats() {

@@ -78,6 +78,16 @@ struct RecentAdvertEntry {
 
 using PromptCallback = void (*)(void* context, int result);
 using TextInputCallback = void (*)(void* context, const char* text);
+using ChartFetchCallback = uint8_t (*)(void* context, float* out, uint8_t max);
+using ChartFormatCallback = void (*)(void* context, char* out, uint8_t out_size, float value);
+
+struct ChartConfig {
+  const char* title;
+  uint8_t expected_samples;
+  ChartFetchCallback fetch;
+  ChartFormatCallback format;
+  void* context;
+};
 
 // Abstracts the hardware APIs from the UI.
 class UIViewModel {
@@ -144,7 +154,7 @@ public:
   virtual RadioDetails getRadioDetails() = 0;
   virtual Bme680Data getBme680Data() = 0;
   virtual uint8_t getBme680History(Bme680Metric metric, float* out, uint8_t max) = 0;
-  virtual void gotoSensorChart(Bme680Metric metric) = 0;
+  virtual void gotoChart(ChartConfig* config) = 0;
   virtual void resetRadioStats() = 0;
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;

@@ -5,7 +5,6 @@
 #include <helpers/ui/UIScreen.h>
 #include "icons.h"
 #include "keys.h"
-#include "shared.h"
 #include "utils.h"
 #include "ui_view_model.h"
 
@@ -868,7 +867,7 @@ class AdvertPage : public UIPage {
     display.translateUTF8ToBlocks(name, entry.name, sizeof(name));
     uint32_t now = page->_model->getRtcSeconds();
     uint32_t age_sec = now >= entry.recv_timestamp ? (now - entry.recv_timestamp) : 0;
-    formatAgeSeconds(age, sizeof(age), age_sec);
+    Utils::formatAgeSeconds(age, sizeof(age), age_sec);
 
     display.setTextSize(2);
     int age_width = display.getTextWidth(age);
@@ -1331,13 +1330,13 @@ public:
     char line[96];
 
     display.setTextSize(1);
-    for (size_t i = 0; i < sizeof(lines10) / sizeof(lines10[0]); i++) {
+    for (size_t i = 0; i < Utils::countof(lines10); i++) {
       display.translateUTF8ToBlocks(line, lines10[i], sizeof(line));
       display.drawTextLeftAlign(4, 4 + (int)(i * 12), line);
     }
 
     display.setTextSize(2);
-    for (size_t i = 0; i < sizeof(lines16) / sizeof(lines16[0]); i++) {
+    for (size_t i = 0; i < Utils::countof(lines16); i++) {
       display.translateUTF8ToBlocks(line, lines16[i], sizeof(line));
       display.drawTextLeftAlign(4, 50 + (int)(i * 20), line);
     }
@@ -1383,16 +1382,16 @@ public:
 
     display.setTextSize(2);
     char value[16];
-    formatTemp(value, sizeof(value), data.temperature);
+    Utils::formatTemp(value, sizeof(value), data.temperature);
     drawMetric(display, 30, 0, "T:", data.has_temperature, value);
 
-    formatHumidity(value, sizeof(value), data.humidity);
+    Utils::formatHumidity(value, sizeof(value), data.humidity);
     drawMetric(display, 50, 1, "H:", data.has_humidity, value);
 
-    formatPressure(value, sizeof(value), data.pressure);
+    Utils::formatPressure(value, sizeof(value), data.pressure);
     drawMetric(display, 70, 2, "P:", data.has_pressure, value);
 
-    formatGas(value, sizeof(value), data.gas_resistance);
+    Utils::formatGas(value, sizeof(value), data.gas_resistance);
     drawMetric(display, 90, 3, "G:", data.has_gas, value);
   }
 
@@ -1401,50 +1400,43 @@ public:
       _selected = (_selected + 3) % 4;
       return true;
     }
-    if (isKey(c, KeyCode::DOWN)) {
+    else if (isKey(c, KeyCode::DOWN)) {
       _selected = (_selected + 1) % 4;
       return true;
     }
-    if (isKey(c, KeyCode::ENTER)) {
-      _model->gotoSensorChart(static_cast<Bme680Metric>(_selected));
+    else if (isKey(c, KeyCode::ENTER)) {
+      _chart_metric = static_cast<Bme680Metric>(_selected);
+      _chart_config.title = Utils::metricTitle(_chart_metric);
+      _chart_config.expected_samples = Bme680HistoryStore::kHistorySize;
+      _chart_config.fetch = fetchChart;
+      _chart_config.format = formatChart;
+      _chart_config.context = this;
+      _model->gotoChart(&_chart_config);
       return true;
     }
+    
     return false;
   }
 
 private:
   uint8_t _selected = 0;
+  Bme680Metric _chart_metric = Bme680Metric::temperature;
+  ChartConfig _chart_config = {};
 
-  static void formatTemp(char* out, size_t out_size, float c) {
-    if (!out || out_size == 0)
-      return;
-    snprintf(out, out_size, "%.0fF", Utils::toF(c));
-  }
+  static uint8_t fetchChart(void* context, float* out, uint8_t max) {
+    auto* page = static_cast<SensorPage*>(context);
+    uint8_t count = page->_model->getBme680History(page->_chart_metric, out, max);
 
-  static void formatHumidity(char* out, size_t out_size, float h) {
-    if (!out || out_size == 0)
-      return;
-    snprintf(out, out_size, "%.1f%%", h);
-  }
-
-  static void formatPressure(char* out, size_t out_size, float hpa) {
-    if (!out || out_size == 0)
-      return;
-    snprintf(out, out_size, "%.2finHg", Utils::toInHg(hpa));
-  }
-
-  static void formatGas(char* out, size_t out_size, float ohms) {
-    if (!out || out_size == 0)
-      return;
-    if (ohms <= 0.0f) {
-      snprintf(out, out_size, "n/a");
-      return;
+    for (uint8_t i = 0; i < count; i++) {
+      out[i] = Utils::convertMetric(page->_chart_metric, out[i]);
     }
-    if (ohms >= 1000.0f) {
-      snprintf(out, out_size, "%.1fkohm", ohms / 1000.0f);
-    } else {
-      snprintf(out, out_size, "%.0fohm", ohms);
-    }
+
+    return count;
+  }
+
+  static void formatChart(void* context, char* out, uint8_t out_size, float value) {
+    auto* page = static_cast<SensorPage*>(context);
+    Utils::formatMetricValue(out, out_size, page->_chart_metric, value);
   }
 
   void drawMetric(

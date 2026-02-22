@@ -1,25 +1,12 @@
 #include "screens.h"
 #include "../MyMesh.h"
 #include "keys.h"
-#include "shared.h"
 #include "utils.h"
 #include "ui_task.h"
 #include <stdio.h>
 #include <string.h>
 
 namespace {
-uint8_t safeStrLen(const char* text, uint8_t max_len) {
-  if (!text)
-    return 0;
-
-  for (uint8_t i = 0; i < max_len; i++) {
-    if (text[i] == 0)
-      return i;
-  }
-
-  return max_len;
-}
-
 // TODO: Review
 void drawWrappedText(
   DisplayDriver& display,
@@ -164,7 +151,7 @@ int MsgViewer::render(DisplayDriver& display) {
   display.drawTextLeftAlign(2, 2, _message.sender);
 
   char age[12];
-  formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
+  Utils::formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
   display.drawTextRightAlign(display.width() - 2, 2, age);
 
   display.drawRect(0, 20, display.width(), 1);
@@ -320,67 +307,50 @@ bool ThreadScreen::handleInput(char c) {
 // --- ChartScreen ---
 ChartScreen::ChartScreen(UIViewModel* model) : _model(model) {}
 
-void ChartScreen::setMetric(Bme680Metric metric) {
-  _metric = metric;
+void ChartScreen::setConfig(ChartConfig* config) {
+  _config = config;
 }
 
-static const char* metricTitle(Bme680Metric metric) {
-  switch (metric) {
-    case Bme680Metric::temperature: return "Temp (F)";
-    case Bme680Metric::humidity: return "Humidity (%)";
-    case Bme680Metric::pressure: return "Pressure (inHg)";
-    case Bme680Metric::gas: return "Gas (ohm)";
-    default: return "Sensor";
+bool ChartScreen::validateConfig(const char** message) {
+  if (!_config) {
+    *message = "No Chart Config";
+    return false;
   }
-}
-
-static float convertMetric(Bme680Metric metric, float value) {
-  switch (metric) {
-    case Bme680Metric::temperature: return Utils::toF(value);
-    case Bme680Metric::pressure: return Utils::toInHg(value);
-    default: return value;
+  if (!_config->fetch) {
+    *message = "No Fetch Fn";
+    return false;
   }
-}
-
-static void formatMetricValue(char* out, size_t out_size, Bme680Metric metric, float value) {
-  if (!out || out_size == 0)
-    return;
-  switch (metric) {
-    case Bme680Metric::temperature:
-      snprintf(out, out_size, "%.0f", value);
-      break;
-    case Bme680Metric::humidity:
-      snprintf(out, out_size, "%.1f", value);
-      break;
-    case Bme680Metric::pressure:
-      snprintf(out, out_size, "%.2f", value);
-      break;
-    case Bme680Metric::gas:
-      snprintf(out, out_size, "%.0f", value);
-      break;
-    default:
-      snprintf(out, out_size, "%.2f", value);
-      break;
+  if (!_config->format) {
+    *message = "No Format Fn";
+    return false;
   }
+  return true;
 }
 
 int ChartScreen::render(DisplayDriver& display) {
   display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
-  display.drawTextLeftAlign(3, 2, metricTitle(_metric));
-  display.drawRect(0, 20, display.width(), 1);
-
-  float samples[Bme680HistoryStore::kHistorySize];
-  uint8_t count = _model->getBme680History(_metric, samples, sizeof(samples) / sizeof(samples[0]));
-  if (count == 0) {
-    display.drawTextCentered(display.width() / 2, 70, "No data");
+  const char* message = nullptr;
+  if (!validateConfig(&message)) {
+    display.drawTextCentered(display.width() / 2, 70, message);
     return 1000;
   }
 
-  float min_v = convertMetric(_metric, samples[0]);
+  const char* title = _config->title ? _config->title : "Chart";
+  display.drawTextLeftAlign(3, 2, title);
+  display.drawRect(0, 20, display.width(), 1);
+
+  float samples[kMaxSamples];
+  uint8_t count = _config->fetch(_config->context, samples, kMaxSamples);
+  if (count == 0) {
+    display.drawTextCentered(display.width() / 2, 70, "No data");
+    return kRefreshMs;
+  }
+
+  float min_v = samples[0];
   float max_v = min_v;
   for (uint8_t i = 1; i < count; i++) {
-    float v = convertMetric(_metric, samples[i]);
+    float v = samples[i];
     if (v < min_v) min_v = v;
     if (v > max_v) max_v = v;
   }
@@ -395,35 +365,52 @@ int ChartScreen::render(DisplayDriver& display) {
   int chart_h = 80;
   display.drawRect(chart_x, chart_y, chart_w, chart_h);
 
-  for (uint8_t i = 1; i < count; i++) {
-    float v0 = convertMetric(_metric, samples[i - 1]);
-    float v1 = convertMetric(_metric, samples[i]);
-    int x0 = chart_x + ((chart_w - 2) * (i - 1)) / (count - 1) + 1;
-    int x1 = chart_x + ((chart_w - 2) * i) / (count - 1) + 1;
-    int y0 = chart_y + chart_h - 2 - (int)((v0 - min_v) * (chart_h - 2) / (max_v - min_v));
-    int y1 = chart_y + chart_h - 2 - (int)((v1 - min_v) * (chart_h - 2) / (max_v - min_v));
-    display.drawRect(x0, y0, 1, 1);
-    display.drawRect(x1, y1, 1, 1);
+  uint8_t expected_samples = _config->expected_samples;
+  if (expected_samples == 0 || expected_samples < count)
+    expected_samples = count;
+  if (expected_samples > kMaxSamples)
+    expected_samples = kMaxSamples;
+  int chart_inner_w = chart_w - 2;
+  int chart_inner_h = chart_h - 2;
+
+  for (uint8_t i = 0; i < count; i++) {
+    float v = samples[i];
+    int x0 = chart_x + 1 + (chart_inner_w * i) / expected_samples;
+    int x1 = chart_x + 1 + (chart_inner_w * (i + 1)) / expected_samples;
+    int w = x1 - x0;
+    if (w < 1)
+      w = 1;
+    int y = chart_y + chart_inner_h - (int)((v - min_v) * chart_inner_h / (max_v - min_v));
+    int h = chart_y + chart_inner_h - y + 1;
+    if (h < 1)
+      h = 1;
+    display.fillRect(x0, y, w, h);
   }
 
   display.setTextSize(1);
   char tmp[24];
   char value[12];
-  formatMetricValue(value, sizeof(value), _metric, min_v);
+  _config->format(_config->context, value, sizeof(value), min_v);
   snprintf(tmp, sizeof(tmp), "min %s", value);
   display.drawTextLeftAlign(3, 115, tmp);
-  formatMetricValue(value, sizeof(value), _metric, max_v);
+  _config->format(_config->context, value, sizeof(value), max_v);
   snprintf(tmp, sizeof(tmp), "max %s", value);
   display.drawTextRightAlign(display.width() - 3, 115, tmp);
-  return 1000;
+  
+  return kRefreshMs;
 }
 
 bool ChartScreen::handleInput(char c) {
-  if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT)) {
+  if (isAnyKey(c, KeyCode::ESC, KeyCode::LEFT, KeyCode::ENTER)) {
+    _config = nullptr;
     _model->gotoPrevious();
     return true;
   }
   return false;
+}
+
+void ChartScreen::activate() {
+  _config = nullptr;
 }
 
 // --- TextInputScreen ---
@@ -454,7 +441,7 @@ void TextInputScreen::begin(
     return;
   }
 
-  _length = safeStrLen(_buffer, static_cast<uint8_t>(_capacity - 1));
+  _length = Utils::safeStrLen(_buffer, static_cast<uint8_t>(_capacity - 1));
   _buffer[_length] = 0;
   _cursor = _length;
 }

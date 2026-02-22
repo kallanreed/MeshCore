@@ -56,14 +56,19 @@ public:
 
 class ChartScreen : public UIScreen
 {
+private:
+  static constexpr int kRefreshMs = 10 * 1000;
   UIViewModel* _model;
-  Bme680Metric _metric = Bme680Metric::temperature;
+  static constexpr uint8_t kMaxSamples = 64;
+  ChartConfig* _config = nullptr;
+  bool validateConfig(const char** message);
 
 public:
   ChartScreen(UIViewModel* model);
-  void setMetric(Bme680Metric metric);
+  void setConfig(ChartConfig* config);
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
+  void activate() override;
 };
 
 class TextInputScreen : public UIScreen

@@ -34,6 +34,7 @@ uint8_t lppValueSize(uint8_t type) {
 
 void Bme680HistoryStore::clear() {
   _next_sample = 0;
+  _latest = {};
   _temp = {};
   _humidity = {};
   _pressure = {};
@@ -65,6 +66,7 @@ void Bme680HistoryStore::tick(uint32_t now_ms, const Bme680Data& data) {
     return;
 
   _next_sample = now_ms + kHistoryIntervalMs;
+  _latest = data;
   if (!data.available)
     return;
 

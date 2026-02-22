@@ -39,8 +39,6 @@ class UITask : public AbstractUITask, public UIViewModel {
   float _batt_percent = 0;
   MessageBuffer _message_buffer;
   bool _invert_screen = false;
-  Bme680Data _bme680_cache = {};
-  uint32_t _bme680_next_refresh = 0;
   Bme680HistoryStore _bme680_history;
 
   UIScreen* _splash;
@@ -58,6 +56,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   bool wakeScreen();
   void checkAutoOff();
   void updateBme680History();
+  Bme680Data readBme680Data();
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
@@ -144,7 +143,7 @@ public:
   RadioDetails getRadioDetails() override;
   Bme680Data getBme680Data() override;
   uint8_t getBme680History(Bme680Metric metric, float* out, uint8_t max) override;
-  void gotoSensorChart(Bme680Metric metric) override;
+  void gotoChart(ChartConfig* config) override;
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
