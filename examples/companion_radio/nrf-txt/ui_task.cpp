@@ -42,6 +42,19 @@ static bool handleKey(UITask* ui, char key) {
   return false;
 }
 
+static void formatOutgoingMessage(char* out, size_t out_size, const char* text) {
+  if (!out || out_size == 0)
+    return;
+  if (!text) {
+    out[0] = 0;
+    return;
+  }
+
+  char prefixed[kMessageTextSize];
+  snprintf(prefixed, sizeof(prefixed), "> %s", text);
+  translateUTF8ToBlocks(out, prefixed, out_size);
+}
+
 // --- Private functions ---
 void UITask::dispatchRender() {
   if (!_display || !_display->isOn())
@@ -261,7 +274,7 @@ bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
   auto success = the_mesh.sendGroupMessage(now, details.channel, name, text, len);
   if (success) {
     char message[kMessageTextSize];
-    translateUTF8ToBlocks(message, text, sizeof(message));
+    formatOutgoingMessage(message, sizeof(message), text);
     _message_buffer.addMessage(
       millis(),
       "You",
@@ -395,7 +408,7 @@ bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
   auto success = result != MSG_SEND_FAILED;
   if (success) {
     char message[kMessageTextSize];
-    translateUTF8ToBlocks(message, text, sizeof(message));
+    formatOutgoingMessage(message, sizeof(message), text);
     _message_buffer.addMessage(
       millis(),
       "You",

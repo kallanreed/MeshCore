@@ -653,15 +653,14 @@ class MessageList {
     if (!list->getMessage(index, entry))
       return;
 
-    char tmp[kMessageTextSize + 4];
-    if (entry.direction == MessageDirection::outgoing) {
-      snprintf(tmp, sizeof(tmp), "> %s", entry.message);
-    } else {
-      snprintf(tmp, sizeof(tmp), "%s", entry.message);
-    }
+    // Ensure this renders only one line.
+    char tmp[kMessageTextSize];
+    size_t len = strcspn(entry.message, "\r\n");
+    if (len >= sizeof(tmp))
+      len = sizeof(tmp) - 1;
+    memcpy(tmp, entry.message, len);
+    tmp[len] = 0;
 
-    display.setColor(DisplayDriver::DARK);
-    display.fillRect(x, y, w, h);
 
     display.setColor(DisplayDriver::LIGHT);
     display.setTextSize(1);
