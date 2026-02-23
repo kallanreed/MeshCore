@@ -409,10 +409,6 @@ bool ChartScreen::handleInput(char c) {
   return false;
 }
 
-void ChartScreen::activate() {
-  _config = nullptr;
-}
-
 // --- TextInputScreen ---
 TextInputScreen::TextInputScreen(UIViewModel* model)
   : _model(model) {

@@ -724,6 +724,7 @@ protected:
   UIViewModel* _model;
 
 public:
+  static constexpr int kPreviewHeight = 115;
   UIPage(UIViewModel* model) : _model(model) {}
 
   // TODO: Title text?
@@ -1343,7 +1344,7 @@ public:
 
     if (_invert) {
       display.setColor(DisplayDriver::INVERSE);
-      display.fillRect(0, 0, 240, 115);
+      display.fillRect(0, 0, 240, kPreviewHeight);
       display.setColor(DisplayDriver::LIGHT);
     }
   }
@@ -1369,39 +1370,46 @@ public:
   }
 
   void renderPreview(DisplayDriver& display) override {
-    char tmp[32];
     auto data = _model->getBme680Data();
 
-    display.setTextSize(2);
-    display.drawTextLeftAlign(3, 5, "BME680");
-
     if (!data.available) {
-      display.drawTextLeftAlign(3, 35, "No data");
+      display.setTextSize(2);
+      display.drawTextCentered(display.width() / 2, kPreviewHeight / 2, "No data");
       return;
     }
 
-    display.setTextSize(2);
+    display.setTextSize(3);
+    const int preview_h = 100;
+    const int text_h = 24;
+    const int row_h = preview_h / 3;
+    const int text_offset = (row_h - text_h) / 2;
+
     char value[16];
+    int text_y = text_offset;
     Utils::formatTemp(value, sizeof(value), data.temperature);
-    drawMetric(display, 30, 0, "T:", data.has_temperature, value);
+    drawMetric(display, text_y, "Temp", data.has_temperature, value);
 
+    text_y += row_h;
     Utils::formatHumidity(value, sizeof(value), data.humidity);
-    drawMetric(display, 50, 1, "H:", data.has_humidity, value);
+    drawMetric(display, text_y, "RelH", data.has_humidity, value);
 
+    text_y += row_h;
     Utils::formatPressure(value, sizeof(value), data.pressure);
-    drawMetric(display, 70, 2, "P:", data.has_pressure, value);
+    drawMetric(display, text_y, "Baro", data.has_pressure, value);
 
-    Utils::formatGas(value, sizeof(value), data.gas_resistance);
-    drawMetric(display, 90, 3, "G:", data.has_gas, value);
+    int row_top = row_h * _selected;
+    display.setColor(DisplayDriver::INVERSE);
+    display.fillRect(2, row_top + 2, display.width() - 4, row_h - 4);
+    display.setColor(DisplayDriver::LIGHT);
   }
 
   bool handleInput(char c) override {
     if (isKey(c, KeyCode::UP)) {
-      _selected = (_selected + 3) % 4;
+      _selected = (_selected + 2) % 3;
       return true;
     }
     else if (isKey(c, KeyCode::DOWN)) {
-      _selected = (_selected + 1) % 4;
+      _selected = (_selected + 1) % 3;
       return true;
     }
     else if (isKey(c, KeyCode::ENTER)) {
@@ -1423,6 +1431,22 @@ private:
   Bme680Metric _chart_metric = Bme680Metric::temperature;
   ChartConfig _chart_config = {};
 
+  void drawMetric(
+    DisplayDriver& display,
+    int text_y,
+    const char* label,
+    bool has_value,
+    const char* value) {
+    char line[32];
+    if (has_value) {
+      snprintf(line, sizeof(line), "%s: %s", label, value);
+    } else {
+      snprintf(line, sizeof(line), "%s: --", label);
+    }
+
+    display.drawTextCentered(display.width() / 2, text_y, line);
+  }
+
   static uint8_t fetchChart(void* context, float* out, uint8_t max) {
     auto* page = static_cast<SensorPage*>(context);
     uint8_t count = page->_model->getBme680History(page->_chart_metric, out, max);
@@ -1439,22 +1463,6 @@ private:
     Utils::formatMetricValue(out, out_size, page->_chart_metric, value);
   }
 
-  void drawMetric(
-    DisplayDriver& display,
-    int y,
-    uint8_t index,
-    const char* label,
-    bool has_value,
-    const char* value) {
-    char line[32];
-    const char* prefix = (index == _selected) ? "> " : "  ";
-    if (has_value) {
-      snprintf(line, sizeof(line), "%s%s %s", prefix, label, value);
-    } else {
-      snprintf(line, sizeof(line), "%s%s --", prefix, label);
-    }
-    display.drawTextLeftAlign(3, y, line);
-  }
 };
 
 class PowerPage : public UIPage {

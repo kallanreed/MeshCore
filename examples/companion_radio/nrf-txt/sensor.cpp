@@ -38,7 +38,6 @@ void Bme680HistoryStore::clear() {
   _temp = {};
   _humidity = {};
   _pressure = {};
-  _gas = {};
 }
 
 void Bme680HistoryStore::push(History& history, float value) {
@@ -76,8 +75,6 @@ void Bme680HistoryStore::tick(uint32_t now_ms, const Bme680Data& data) {
     push(_humidity, data.humidity);
   if (data.has_pressure)
     push(_pressure, data.pressure);
-  if (data.has_gas && data.gas_resistance > 0.0f)
-    push(_gas, data.gas_resistance);
 }
 
 uint8_t Bme680HistoryStore::get(Bme680Metric metric, float* out, uint8_t max) const {
@@ -88,8 +85,6 @@ uint8_t Bme680HistoryStore::get(Bme680Metric metric, float* out, uint8_t max) co
       return copy(_humidity, out, max);
     case Bme680Metric::pressure:
       return copy(_pressure, out, max);
-    case Bme680Metric::gas:
-      return copy(_gas, out, max);
     default:
       break;
   }
@@ -151,14 +146,7 @@ bool decodeBme680FromLpp(const uint8_t* buf, uint8_t len, Bme680Data& out) {
     if (type == LPP_ANALOG_INPUT) {
       if (pos + 2 > len)
         break;
-      int16_t raw = static_cast<int16_t>((buf[pos] << 8) | buf[pos + 1]);
-      float value = raw / static_cast<float>(LPP_ANALOG_INPUT_MULT);
       pos += 2;
-      if (!out.has_gas && value > 0.0f) {
-        out.gas_resistance = value;
-        out.has_gas = true;
-      }
-      out.available = true;
       continue;
     }
 

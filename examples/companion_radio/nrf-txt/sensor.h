@@ -7,18 +7,15 @@ struct Bme680Data {
   bool has_temperature;
   bool has_humidity;
   bool has_pressure;
-  bool has_gas;
   float temperature;
   float humidity;
   float pressure;
-  float gas_resistance;
 };
 
 enum class Bme680Metric : uint8_t {
   temperature,
   humidity,
-  pressure,
-  gas
+  pressure
 };
 
 class Bme680HistoryStore {
@@ -44,7 +41,6 @@ private:
   History _temp;
   History _humidity;
   History _pressure;
-  History _gas;
 
   void push(History& history, float value);
   uint8_t copy(const History& history, float* out, uint8_t max) const;

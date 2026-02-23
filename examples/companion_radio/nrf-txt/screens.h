@@ -68,7 +68,6 @@ public:
   void setConfig(ChartConfig* config);
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
-  void activate() override;
 };
 
 class TextInputScreen : public UIScreen

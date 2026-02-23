@@ -54,7 +54,6 @@ public:
       case Bme680Metric::temperature: return "Temp (F)";
       case Bme680Metric::humidity: return "Humidity (%)";
       case Bme680Metric::pressure: return "Pressure (inHg)";
-      case Bme680Metric::gas: return "Gas (ohm)";
       default: break;
     }
     return "";
@@ -83,9 +82,6 @@ public:
       case Bme680Metric::pressure:
         snprintf(out, out_size, "%.2f", value);
         break;
-      case Bme680Metric::gas:
-        snprintf(out, out_size, "%.0f", value);
-        break;
       default:
         snprintf(out, out_size, "%.2f", value);
         break;
@@ -110,17 +106,4 @@ public:
     snprintf(out, out_size, "%.2finHg", toInHg(hpa));
   }
 
-  static void formatGas(char* out, size_t out_size, float ohms) {
-    if (!out || out_size == 0)
-      return;
-    if (ohms <= 0.0f) {
-      snprintf(out, out_size, "n/a");
-      return;
-    }
-    if (ohms >= 1000.0f) {
-      snprintf(out, out_size, "%.1fkohm", ohms / 1000.0f);
-    } else {
-      snprintf(out, out_size, "%.0fohm", ohms);
-    }
-  }
 };
