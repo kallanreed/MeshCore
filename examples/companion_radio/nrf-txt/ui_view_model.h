@@ -60,14 +60,32 @@ enum class MessageScope : uint8_t {
 };
 
 struct MessageEntry {
-  bool read;
   uint32_t timestamp_ms;
   char sender[kMessageSenderSize];
   char message[kMessageTextSize];
-  MessageKind kind;
-  MessageDirection direction;
   uint8_t channel_index;
   uint8_t contact_prefix[kContactPrefixSize];
+  uint8_t flags;
+
+  bool isRead() const { return (flags & 0x01) != 0; }
+  void setRead(bool value) { flags = value ? (flags | 0x01) : (flags & ~0x01); }
+
+  bool isAcked() const { return (flags & 0x02) != 0; }
+  void setAcked(bool value) { flags = value ? (flags | 0x02) : (flags & ~0x02); }
+
+  MessageDirection direction() const {
+    return (flags & 0x04) ? MessageDirection::outgoing : MessageDirection::incoming;
+  }
+  void setDirection(MessageDirection value) {
+    flags = (value == MessageDirection::outgoing) ? (flags | 0x04) : (flags & ~0x04);
+  }
+
+  MessageKind kind() const {
+    return static_cast<MessageKind>((flags >> 3) & 0x03);
+  }
+  void setKind(MessageKind value) {
+    flags = static_cast<uint8_t>((flags & ~0x18) | ((static_cast<uint8_t>(value) & 0x03) << 3));
+  }
 };
 
 struct RecentAdvertEntry {
@@ -162,7 +180,7 @@ public:
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
   virtual void markMessageRead(uint8_t offset) = 0;
-  virtual void markMessageReadById(uint32_t message_id) = 0;
+  virtual void markMessageReadByTimestamp(uint32_t timestamp_ms) = 0;
   virtual bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) = 0;
   virtual bool getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) = 0;
   virtual uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) = 0;

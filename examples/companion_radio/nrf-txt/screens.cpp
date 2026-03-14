@@ -130,12 +130,19 @@ MsgViewer::MsgViewer(UIViewModel* model) : _model(model) {
 void MsgViewer::setMessageInternal(const MessageEntry& message) {
   _message = message;
   _has_message = true;
-  _model->markMessageReadById(_message.timestamp_ms);
+  _model->markMessageReadByTimestamp(_message.timestamp_ms);
 }
 
 void MsgViewer::setMessage(const MessageEntry& message, MessageScope scope) {
   _scope = scope;
   setMessageInternal(message);
+}
+
+void MsgViewer::onMessageUpdate(uint32_t timestamp_ms) {
+  if (!_has_message || _message.timestamp_ms != timestamp_ms)
+    return;
+
+  _message.setAcked(true);
 }
 
 int MsgViewer::render(DisplayDriver& display) {
@@ -153,6 +160,8 @@ int MsgViewer::render(DisplayDriver& display) {
   char age[12];
   Utils::formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
   display.drawTextRightAlign(display.width() - 2, 2, age);
+  if (_message.direction() == MessageDirection::outgoing && _message.isAcked())
+    display.fillRect(display.width() - 12, 8, 4, 4);
 
   display.drawRect(0, 20, display.width(), 1);
 

@@ -338,19 +338,19 @@ class MessageBuffer {
   }
 
   bool matchesContact(const MessageEntry& entry, const uint8_t* prefix) const {
-    if (!prefix || entry.kind != MessageKind::contact)
+    if (!prefix || entry.kind() != MessageKind::contact)
       return false;
     return memcmp(entry.contact_prefix, prefix, sizeof(entry.contact_prefix)) == 0;
   }
 
   bool matchesChannel(const MessageEntry& entry, uint8_t channel_index) const {
-    return entry.kind == MessageKind::channel && entry.channel_index == channel_index;
+    return entry.kind() == MessageKind::channel && entry.channel_index == channel_index;
   }
 
   bool matchesThread(const MessageEntry& entry, const MessageEntry& current) const {
-    if (current.kind == MessageKind::contact)
+    if (current.kind() == MessageKind::contact)
       return matchesContact(entry, current.contact_prefix);
-    if (current.kind == MessageKind::channel)
+    if (current.kind() == MessageKind::channel)
       return matchesChannel(entry, current.channel_index);
     return false;
   }
@@ -361,13 +361,13 @@ class MessageBuffer {
     return matchesThread(entry, current);
   }
 
-  bool findMessageIndexById(uint32_t message_id, uint8_t* out_index) const {
+  bool findMessageIndexByTimestamp(uint32_t timestamp_ms, uint8_t* out_index) const {
     if (!out_index)
       return false;
 
     for (uint8_t i = 0; i < _count; i++) {
       auto& entry = _entries[toIndex(i)];
-      if (entry.timestamp_ms == message_id) {
+      if (entry.timestamp_ms == timestamp_ms) {
         *out_index = i;
         return true;
       }
@@ -387,10 +387,12 @@ public:
     uint8_t channel_index,
     MessageDirection direction) {
     auto* entry = &_entries[_head];
-    entry->read = direction == MessageDirection::outgoing;
     entry->timestamp_ms = timestamp_ms;
-    entry->kind = kind;
-    entry->direction = direction;
+    entry->flags = 0;
+    entry->setRead(direction == MessageDirection::outgoing);
+    entry->setAcked(false);
+    entry->setKind(kind);
+    entry->setDirection(direction);
     entry->channel_index = channel_index;
     if (contact_prefix) {
       memcpy(entry->contact_prefix, contact_prefix, sizeof(entry->contact_prefix));
@@ -436,26 +438,33 @@ public:
     if (offset >= _count)
       return;
 
-    _entries[toIndex(offset)].read = true;
+    _entries[toIndex(offset)].setRead(true);
   }
 
-  void markReadById(uint32_t message_id) {
+  void markReadByTimestamp(uint32_t timestamp_ms) {
     uint8_t index = 0;
-    if (!findMessageIndexById(message_id, &index))
+    if (!findMessageIndexByTimestamp(timestamp_ms, &index))
       return;
-    _entries[toIndex(index)].read = true;
+    _entries[toIndex(index)].setRead(true);
+  }
+
+  void markAckedByTimestamp(uint32_t timestamp_ms) {
+    uint8_t index = 0;
+    if (!findMessageIndexByTimestamp(timestamp_ms, &index))
+      return;
+    _entries[toIndex(index)].setAcked(true);
   }
 
   void markAllRead() {
     for (uint8_t i = 0; i < _count; i++) {
-      _entries[toIndex(i)].read = true;
+      _entries[toIndex(i)].setRead(true);
     }
   }
 
   uint8_t getUnreadCount() const {
     uint8_t unread = 0;
     for (uint8_t i = 0; i < _count; i++) {
-      if (!_entries[toIndex(i)].read)
+      if (!_entries[toIndex(i)].isRead())
         unread++;
     }
     return unread;
@@ -487,7 +496,7 @@ public:
     uint8_t unread = 0;
     for (uint8_t i = 0; i < _count; i++) {
       auto& entry = _entries[toIndex(i)];
-      if (matchesContact(entry, prefix) && !entry.read)
+      if (matchesContact(entry, prefix) && !entry.isRead())
         unread++;
     }
     return unread;
@@ -497,7 +506,7 @@ public:
     uint8_t unread = 0;
     for (uint8_t i = 0; i < _count; i++) {
       auto& entry = _entries[toIndex(i)];
-      if (matchesChannel(entry, channel_index) && !entry.read)
+      if (matchesChannel(entry, channel_index) && !entry.isRead())
         unread++;
     }
     return unread;
@@ -555,7 +564,7 @@ public:
     for (uint8_t i = 0; i < _count; i++) {
       auto idx = toIndex(i);
       if (matchesContact(_entries[idx], prefix))
-        _entries[idx].read = true;
+        _entries[idx].setRead(true);
     }
   }
 
@@ -563,7 +572,7 @@ public:
     for (uint8_t i = 0; i < _count; i++) {
       auto idx = toIndex(i);
       if (matchesChannel(_entries[idx], channel_index))
-        _entries[idx].read = true;
+        _entries[idx].setRead(true);
     }
   }
 
@@ -580,7 +589,7 @@ public:
       return false;
 
     uint8_t start = 0;
-    if (!findMessageIndexById(current.timestamp_ms, &start))
+    if (!findMessageIndexByTimestamp(current.timestamp_ms, &start))
       return false;
 
     int16_t step = forward ? 1 : -1;
@@ -660,14 +669,21 @@ class MessageList {
       len = sizeof(tmp) - 1;
     memcpy(tmp, entry.message, len);
     tmp[len] = 0;
-
+    bool show_ack = entry.direction() == MessageDirection::outgoing && entry.isAcked();
+    int ack_x = x + w - 4;
+    int max_text_width = w - 6 - (show_ack ? 8 : 0);
+    while (tmp[0] && display.getTextWidth(tmp) > max_text_width) {
+      tmp[strlen(tmp) - 1] = 0;
+    }
 
     display.setColor(DisplayDriver::LIGHT);
     display.setTextSize(1);
-    if (!entry.read)
+    if (!entry.isRead())
       display.fillRect(x, y + 4, 3, 3);
 
     display.drawTextLeftAlign(x + 6, y - 2, tmp);
+    if (show_ack)
+      display.fillRect(ack_x, y + 3, 4, 4);
   }
 
 public:
@@ -709,7 +725,7 @@ public:
       MessageEntry entry{};
       if (!getMessage(offset, entry))
         continue;
-      if (!entry.read) {
+      if (!entry.isRead()) {
         _list.setSelected(offset);
         return true;
       }

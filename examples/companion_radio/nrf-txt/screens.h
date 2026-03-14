@@ -29,6 +29,7 @@ class MsgViewer : public UIScreen
 public:
   MsgViewer(UIViewModel* model);
   void setMessage(const MessageEntry& message, MessageScope scope);
+  void onMessageUpdate(uint32_t timestamp_ms);
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
 };

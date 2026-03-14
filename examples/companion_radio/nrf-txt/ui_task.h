@@ -40,6 +40,13 @@ class UITask : public AbstractUITask, public UIViewModel {
   MessageBuffer _message_buffer;
   bool _invert_screen = false;
   Bme680HistoryStore _bme680_history;
+  struct PendingDmAck {
+    uint32_t ack_hash = 0;
+    uint32_t timestamp_ms = 0;
+  };
+  static constexpr uint8_t kPendingDmAckCount = 8;
+  PendingDmAck _pending_dm_acks[kPendingDmAckCount] = {};
+  uint8_t _next_pending_dm_ack = 0;
 
   UIScreen* _splash;
   UIScreen* _home;
@@ -57,6 +64,8 @@ class UITask : public AbstractUITask, public UIViewModel {
   void checkAutoOff();
   void updateBme680History();
   Bme680Data readBme680Data();
+  void rememberPendingDmAck(uint32_t ack_hash, uint32_t timestamp_ms);
+  uint32_t consumePendingDmAckTimestamp(uint32_t ack_hash);
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
@@ -77,6 +86,7 @@ public:
     const char* text,
     int msgcount,
     const UIMessageMeta& meta) override;
+  void onDirectMessageAck(uint32_t ack_hash, const ContactInfo& contact, uint32_t trip_time_ms) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
 
@@ -148,7 +158,7 @@ public:
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
-  void markMessageReadById(uint32_t message_id) override;
+  void markMessageReadByTimestamp(uint32_t timestamp_ms) override;
   bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) override;
   bool getNextMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) override;
   uint8_t getRecentAdverts(RecentAdvertEntry* out, uint8_t max) override;

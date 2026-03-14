@@ -98,6 +98,32 @@ Bme680Data UITask::readBme680Data() {
   return data;
 }
 
+void UITask::rememberPendingDmAck(uint32_t ack_hash, uint32_t timestamp_ms) {
+  if (ack_hash == 0 || timestamp_ms == 0)
+    return;
+
+  _pending_dm_acks[_next_pending_dm_ack].ack_hash = ack_hash;
+  _pending_dm_acks[_next_pending_dm_ack].timestamp_ms = timestamp_ms;
+  _next_pending_dm_ack = (_next_pending_dm_ack + 1) % kPendingDmAckCount;
+}
+
+uint32_t UITask::consumePendingDmAckTimestamp(uint32_t ack_hash) {
+  if (ack_hash == 0)
+    return 0;
+
+  for (uint8_t i = 0; i < kPendingDmAckCount; i++) {
+    if (_pending_dm_acks[i].ack_hash != ack_hash)
+      continue;
+
+    uint32_t timestamp_ms = _pending_dm_acks[i].timestamp_ms;
+    _pending_dm_acks[i].ack_hash = 0;
+    _pending_dm_acks[i].timestamp_ms = 0;
+    return timestamp_ms;
+  }
+
+  return 0;
+}
+
 void UITask::setCurrent(UIScreen* screen) {
   if (_curr != screen)
     _prev_screen = _curr;
@@ -179,6 +205,20 @@ void UITask::newMsg(
     meta.contact_prefix,
     meta.channel_index,
     MessageDirection::incoming);
+  renderAfter(0);
+}
+
+void UITask::onDirectMessageAck(uint32_t ack_hash, const ContactInfo& contact, uint32_t trip_time_ms) {
+  (void)contact;
+  (void)trip_time_ms;
+
+  uint32_t timestamp_ms = consumePendingDmAckTimestamp(ack_hash);
+  if (timestamp_ms == 0)
+    return;
+
+  _message_buffer.markAckedByTimestamp(timestamp_ms);
+  if (_msg_viewer)
+    static_cast<MsgViewer*>(_msg_viewer)->onMessageUpdate(timestamp_ms);
   renderAfter(0);
 }
 
@@ -431,15 +471,17 @@ bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
   auto success = result != MSG_SEND_FAILED;
   if (success) {
     char message[kMessageTextSize];
+    uint32_t timestamp_ms = millis();
     formatOutgoingMessage(message, sizeof(message), text);
     _message_buffer.addMessage(
-      millis(),
+      timestamp_ms,
       "You",
       message,
       MessageKind::contact,
       contact.id.pub_key,
       0xFF,
       MessageDirection::outgoing);
+    rememberPendingDmAck(expected_ack, timestamp_ms);
     renderAfter(0);
   }
   return success;
@@ -705,8 +747,8 @@ void UITask::markMessageRead(uint8_t offset) {
   _message_buffer.markRead(offset);
 }
 
-void UITask::markMessageReadById(uint32_t message_id) {
-  _message_buffer.markReadById(message_id);
+void UITask::markMessageReadByTimestamp(uint32_t timestamp_ms) {
+  _message_buffer.markReadByTimestamp(timestamp_ms);
 }
 
 bool UITask::getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) {
