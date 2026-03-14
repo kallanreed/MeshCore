@@ -36,12 +36,14 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 ## Thread Screen (Contact Or Channel)
 - `ESC` or `LEFT`: Return to Home.
 - `FN+ENTER`: Compose message (opens text input).
+- `FN+D`: Delete the current contact or channel (opens confirm prompt).
 - `FN+R`: Mark thread messages read.
 - `ENTER`: Open selected message in viewer.
 - `UP` / `DOWN`: Move through message list.
 
 ## Message Viewer
 - `ESC` or `LEFT` or `ENTER`: Return to previous screen.
+- `FN+ENTER`: Open compose for the current message thread.
 - `UP`: Previous message.
 - `DOWN`: Next message.
 

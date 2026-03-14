@@ -140,6 +140,7 @@ public:
     uint8_t count,
     MessageEntry* out) = 0;
   virtual void markMessagesReadForChannel(uint8_t channel_index) = 0;
+  virtual bool deleteChannel(uint8_t channel_index) = 0;
   virtual void gotoChannelThread(uint8_t channel_index) = 0;
   virtual uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) = 0;
   virtual const char* getContactName(uint8_t contact_index) = 0;
@@ -152,6 +153,7 @@ public:
     uint8_t count,
     MessageEntry* out) = 0;
   virtual void markMessagesReadForContact(uint8_t contact_index) = 0;
+  virtual bool deleteContact(uint8_t contact_index) = 0;
   virtual void gotoContactThread(uint8_t contact_index) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
@@ -162,6 +164,7 @@ public:
   virtual void gotoHome() = 0;
   virtual void gotoPrevious() = 0;
   virtual void gotoMsgViewer(const MessageEntry& message, MessageScope scope) = 0;
+  virtual bool openComposeForMessage(const MessageEntry& message) = 0;
   virtual void renderAfter(uint32_t delay_ms) = 0;
   virtual void shutdown(bool restart) = 0;
   virtual void toggleBuzzer() = 0;

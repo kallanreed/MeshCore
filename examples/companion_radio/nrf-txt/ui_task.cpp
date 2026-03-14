@@ -124,6 +124,25 @@ uint32_t UITask::consumePendingDmAckTimestamp(uint32_t ack_hash) {
   return 0;
 }
 
+bool UITask::findContactIndexByPrefix(const uint8_t* prefix, uint8_t* out_index) {
+  if (!prefix || !out_index)
+    return false;
+
+  auto total = the_mesh.getNumContacts();
+  for (uint32_t i = 0; i < static_cast<uint32_t>(total); i++) {
+    ContactInfo contact{};
+    if (!getChatContactByIndex(static_cast<uint8_t>(i), contact))
+      continue;
+    if (memcmp(contact.id.pub_key, prefix, kContactPrefixSize) != 0)
+      continue;
+
+    *out_index = static_cast<uint8_t>(i);
+    return true;
+  }
+
+  return false;
+}
+
 void UITask::setCurrent(UIScreen* screen) {
   if (_curr != screen)
     _prev_screen = _curr;
@@ -406,6 +425,10 @@ void UITask::markMessagesReadForChannel(uint8_t channel_index) {
   _message_buffer.markAllReadForChannel(channel_index);
 }
 
+bool UITask::deleteChannel(uint8_t channel_index) {
+  return the_mesh.deleteChannelByIndex(channel_index);
+}
+
 void UITask::gotoChannelThread(uint8_t channel_index) {
   static_cast<ThreadScreen*>(_thread_viewer)->setChannel(channel_index);
   setCurrent(_thread_viewer);
@@ -519,6 +542,10 @@ void UITask::markMessagesReadForContact(uint8_t contact_index) {
   _message_buffer.markAllReadForContact(prefix);
 }
 
+bool UITask::deleteContact(uint8_t contact_index) {
+  return the_mesh.deleteContactByIndex(contact_index);
+}
+
 void UITask::gotoContactThread(uint8_t contact_index) {
   static_cast<ThreadScreen*>(_thread_viewer)->setContact(contact_index);
   setCurrent(_thread_viewer);
@@ -570,6 +597,29 @@ void UITask::gotoPrevious() {
 void UITask::gotoMsgViewer(const MessageEntry& message, MessageScope scope) {
   static_cast<MsgViewer*>(_msg_viewer)->setMessage(message, scope);
   setCurrent(_msg_viewer);
+}
+
+bool UITask::openComposeForMessage(const MessageEntry& message) {
+  if (message.kind() == MessageKind::contact) {
+    uint8_t contact_index = 0;
+    if (!findContactIndexByPrefix(message.contact_prefix, &contact_index))
+      return false;
+    auto* thread = static_cast<ThreadScreen*>(_thread_viewer);
+    thread->setContact(contact_index);
+    setCurrent(_thread_viewer);
+    thread->startCompose();
+    return true;
+  }
+
+  if (message.kind() == MessageKind::channel) {
+    auto* thread = static_cast<ThreadScreen*>(_thread_viewer);
+    thread->setChannel(message.channel_index);
+    setCurrent(_thread_viewer);
+    thread->startCompose();
+    return true;
+  }
+
+  return false;
 }
 
 void UITask::renderAfter(uint32_t delay_ms) {

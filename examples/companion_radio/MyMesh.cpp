@@ -333,6 +333,30 @@ void MyMesh::onContactsFull() {
   }
 }
 
+bool MyMesh::deleteContactByIndex(uint8_t contact_index) {
+  ContactInfo contact{};
+  if (!getContactByIdx(contact_index, contact))
+    return false;
+
+  if (!removeContact(contact))
+    return false;
+
+  saveContacts();
+  return true;
+}
+
+bool MyMesh::deleteChannelByIndex(uint8_t channel_index) {
+  ChannelDetails channel{};
+  memset(channel.name, 0, sizeof(channel.name));
+  memset(channel.channel.secret, 0, sizeof(channel.channel.secret));
+
+  if (!setChannel(channel_index, channel))
+    return false;
+
+  saveChannels();
+  return true;
+}
+
 void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
   if (_serial->isConnected()) {
     if (is_new) {

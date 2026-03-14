@@ -66,6 +66,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   Bme680Data readBme680Data();
   void rememberPendingDmAck(uint32_t ack_hash, uint32_t timestamp_ms);
   uint32_t consumePendingDmAckTimestamp(uint32_t ack_hash);
+  bool findContactIndexByPrefix(const uint8_t* prefix, uint8_t* out_index);
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
@@ -119,6 +120,7 @@ public:
     uint8_t count,
     MessageEntry* out) override;
   void markMessagesReadForChannel(uint8_t channel_index) override;
+  bool deleteChannel(uint8_t channel_index) override;
   void gotoChannelThread(uint8_t channel_index) override;
   uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) override;
   const char* getContactName(uint8_t contact_index) override;
@@ -131,6 +133,7 @@ public:
     uint8_t count,
     MessageEntry* out) override;
   void markMessagesReadForContact(uint8_t contact_index) override;
+  bool deleteContact(uint8_t contact_index) override;
   void gotoContactThread(uint8_t contact_index) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;
@@ -141,6 +144,7 @@ public:
   void gotoHome() override;
   void gotoPrevious() override;
   void gotoMsgViewer(const MessageEntry& message, MessageScope scope) override;
+  bool openComposeForMessage(const MessageEntry& message) override;
   void renderAfter(uint32_t delay_ms) override;
   void shutdown(bool restart = false) override;
   void toggleBuzzer() override;

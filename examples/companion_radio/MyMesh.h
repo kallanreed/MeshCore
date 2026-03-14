@@ -103,6 +103,8 @@ public:
 
   int  getRecentlyHeard(AdvertPath dest[], int max_num);
   bool addChatContactFromRecent(const uint8_t* pub_key, const char* name);
+  bool deleteContactByIndex(uint8_t contact_index);
+  bool deleteChannelByIndex(uint8_t channel_index);
 
 protected:
   float getAirtimeBudgetFactor() const override;

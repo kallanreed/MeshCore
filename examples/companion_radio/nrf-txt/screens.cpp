@@ -177,6 +177,11 @@ bool MsgViewer::handleInput(char c) {
     return true;
   }
 
+  if (isKey(c, KeyCode::FN_ENTER)) {
+    if (_model->openComposeForMessage(_message))
+      return true;
+  }
+
   bool handled = false;
 
   if (isKey(c, KeyCode::UP)) {
@@ -216,6 +221,39 @@ void ThreadScreen::onThreadText(void* context, const char* text) {
   }
 }
 
+void ThreadScreen::openComposePrompt() {
+  _text[0] = 0;
+  char title[48];
+  if (_is_contact) {
+    auto name = _model->getContactName(_target);
+    snprintf(title, sizeof(title), "Send to %s", name ? name : "Contact");
+  } else {
+    auto name = _model->getChannelName(_target);
+    snprintf(title, sizeof(title), "Send to %s", name ? name : "Channel");
+  }
+  _model->promptText(title, _text, sizeof(_text), onThreadText, this);
+}
+
+void ThreadScreen::onDeletePrompt(void* context, int result) {
+  auto* screen = static_cast<ThreadScreen*>(context);
+  if (!screen || result != 0)
+    return;
+
+  bool deleted = false;
+  if (screen->_is_contact) {
+    deleted = screen->_model->deleteContact(screen->_target);
+  } else {
+    deleted = screen->_model->deleteChannel(screen->_target);
+  }
+
+  if (deleted) {
+    screen->_model->gotoHome();
+  } else {
+    static const char* options[] = { "OK" };
+    screen->_model->prompt("Delete Failed", options, 1, nullptr, nullptr);
+  }
+}
+
 void ThreadScreen::setContact(uint8_t contact_index) {
   _is_contact = true;
   _target = contact_index;
@@ -245,6 +283,10 @@ void ThreadScreen::activate() {
   refresh();
 }
 
+void ThreadScreen::startCompose() {
+  openComposePrompt();
+}
+
 int ThreadScreen::render(DisplayDriver& display) {
   display.setTextSize(2);
   display.setColor(DisplayDriver::LIGHT);
@@ -267,16 +309,7 @@ bool ThreadScreen::handleInput(char c) {
   }
 
   if (isKey(c, KeyCode::FN_ENTER)) {
-    _text[0] = 0;
-    char title[48];
-    if (_is_contact) {
-      auto name = _model->getContactName(_target);
-      snprintf(title, sizeof(title), "Send to %s", name ? name : "Contact");
-    } else {
-      auto name = _model->getChannelName(_target);
-      snprintf(title, sizeof(title), "Send to %s", name ? name : "Channel");
-    }
-    _model->promptText(title, _text, sizeof(_text), onThreadText, this);
+    openComposePrompt();
     return true;
   }
 
@@ -287,6 +320,12 @@ bool ThreadScreen::handleInput(char c) {
       _model->markMessagesReadForChannel(_target);
     }
     _model->renderAfter(0);
+    return true;
+  }
+
+  if (isKey(c, KeyCode::FN_D)) {
+    static const char* options[] = { "Delete", "Cancel" };
+    _model->prompt(_is_contact ? "Delete Contact?" : "Delete Channel?", options, 2, onDeletePrompt, this);
     return true;
   }
 

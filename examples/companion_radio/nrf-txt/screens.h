@@ -44,12 +44,15 @@ class ThreadScreen : public UIScreen
   char _text[kMessageTextSize] = {};
 
   void refresh();
+  void openComposePrompt();
   static void onThreadText(void* context, const char* text);
+  static void onDeletePrompt(void* context, int result);
 
 public:
   ThreadScreen(UIViewModel* model);
   void setContact(uint8_t contact_index);
   void setChannel(uint8_t channel_index);
+  void startCompose();
   int render(DisplayDriver& display) override;
   bool handleInput(char c) override;
   void activate() override;
