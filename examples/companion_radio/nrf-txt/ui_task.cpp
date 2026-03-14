@@ -55,6 +55,24 @@ static void formatOutgoingMessage(char* out, size_t out_size, const char* text) 
   translateUTF8ToBlocks(out, prefixed, out_size);
 }
 
+static void formatAckContactLabel(char* out, size_t out_size, const ContactInfo& contact) {
+  if (!out || out_size == 0)
+    return;
+
+  if (contact.name[0]) {
+    StrHelper::strncpy(out, contact.name, out_size);
+    return;
+  }
+
+  snprintf(
+    out,
+    out_size,
+    "ID:%02X%02X%02X",
+    contact.id.pub_key[0],
+    contact.id.pub_key[1],
+    contact.id.pub_key[2]);
+}
+
 
 // --- Private functions ---
 void UITask::dispatchRender() {
@@ -69,6 +87,7 @@ void UITask::dispatchRender() {
   if (_prompt.isActive()) {
     _prompt.render(*_display);
   }
+  renderDmAckBadge();
   if (_invert_screen) {
     _display->setColor(DisplayDriver::INVERSE);
     _display->fillRect(0, 0, 240, 135);
@@ -96,6 +115,40 @@ Bme680Data UITask::readBme680Data() {
     }
   }
   return data;
+}
+
+void UITask::renderDmAckBadge() {
+  if (!_display || _dm_ack_label[0] == 0)
+    return;
+
+  uint32_t now = millis();
+  if (now >= _dm_ack_expires_at) {
+    _dm_ack_label[0] = 0;
+    _dm_ack_trip_time_ms = 0;
+    return;
+  }
+
+  char badge[40];
+  if (_dm_ack_trip_time_ms > 0) {
+    snprintf(badge, sizeof(badge), "DM ACK %s %lums", _dm_ack_label, _dm_ack_trip_time_ms);
+  } else {
+    snprintf(badge, sizeof(badge), "DM ACK %s", _dm_ack_label);
+  }
+
+  _display->setTextSize(1);
+  int badge_w = _display->getTextWidth(badge) + 8;
+  if (badge_w > _display->width() - 4)
+    badge_w = _display->width() - 4;
+
+  int badge_h = 12;
+  int badge_x = _display->width() - badge_w - 2;
+  int badge_y = 2;
+
+  _display->setColor(DisplayDriver::LIGHT);
+  _display->drawTextLeftAlign(badge_x + 4, badge_y + 2, badge);
+  _display->setColor(DisplayDriver::INVERSE);
+  _display->fillRect(badge_x, badge_y, badge_w, badge_h);
+  _display->setColor(DisplayDriver::LIGHT);
 }
 
 void UITask::setCurrent(UIScreen* screen) {
@@ -179,6 +232,13 @@ void UITask::newMsg(
     meta.contact_prefix,
     meta.channel_index,
     MessageDirection::incoming);
+  renderAfter(0);
+}
+
+void UITask::onDirectMessageAck(const ContactInfo& contact, uint32_t trip_time_ms) {
+  formatAckContactLabel(_dm_ack_label, sizeof(_dm_ack_label), contact);
+  _dm_ack_trip_time_ms = trip_time_ms;
+  _dm_ack_expires_at = millis() + 5000;
   renderAfter(0);
 }
 

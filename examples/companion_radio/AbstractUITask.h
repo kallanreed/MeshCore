@@ -65,6 +65,10 @@ public:
     (void)meta;
     newMsg(path_len, from_name, text, msgcount);
   }
+  virtual void onDirectMessageAck(const ContactInfo& contact, uint32_t trip_time_ms) {
+    (void)contact;
+    (void)trip_time_ms;
+  }
   virtual void notify(UIEventType t = UIEventType::none) = 0;
   virtual void loop() = 0;
 };

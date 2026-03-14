@@ -33,10 +33,13 @@ class UITask : public AbstractUITask, public UIViewModel {
   uint32_t _next_render = 0;
   uint32_t _next_batt_check = 0;
   uint32_t _auto_off = 0;
+  uint32_t _dm_ack_expires_at = 0;
+  uint32_t _dm_ack_trip_time_ms = 0;
   //uint32_t _alert_expiry = 0;
   //uint32_t _next_backlight_btn_check = 0;
 
   float _batt_percent = 0;
+  char _dm_ack_label[24] = {};
   MessageBuffer _message_buffer;
   bool _invert_screen = false;
   Bme680HistoryStore _bme680_history;
@@ -57,6 +60,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   void checkAutoOff();
   void updateBme680History();
   Bme680Data readBme680Data();
+  void renderDmAckBadge();
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
@@ -77,6 +81,7 @@ public:
     const char* text,
     int msgcount,
     const UIMessageMeta& meta) override;
+  void onDirectMessageAck(const ContactInfo& contact, uint32_t trip_time_ms) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
 
