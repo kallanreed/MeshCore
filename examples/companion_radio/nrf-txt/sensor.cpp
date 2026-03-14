@@ -34,17 +34,39 @@ uint8_t lppValueSize(uint8_t type) {
 
 void Bme680HistoryStore::clear() {
   _next_sample = 0;
+  _interval_multiplier = 1;
   _latest = {};
   _temp = {};
   _humidity = {};
   _pressure = {};
 }
 
+void Bme680HistoryStore::compactHistory(History& history) {
+  if (history.count < 2)
+    return;
+
+  uint8_t out = 0;
+  for (uint8_t i = 0; i < history.count; i += 2) {
+    history.values[out++] = history.values[i];
+  }
+  history.count = out;
+}
+
+void Bme680HistoryStore::compact() {
+  compactHistory(_temp);
+  compactHistory(_humidity);
+  compactHistory(_pressure);
+  if (_interval_multiplier < kMaxIntervalMultiplier)
+    _interval_multiplier <<= 1;
+}
+
 void Bme680HistoryStore::push(History& history, float value) {
-  history.values[history.head] = value;
-  history.head = (history.head + 1) % kHistorySize;
-  if (history.count < kHistorySize)
-    history.count++;
+  if (history.count >= kHistorySize) {
+    memmove(history.values, history.values + 1, sizeof(float) * (kHistorySize - 1));
+    history.count = kHistorySize - 1;
+  }
+
+  history.values[history.count++] = value;
 }
 
 uint8_t Bme680HistoryStore::copy(const History& history, float* out, uint8_t max) const {
@@ -52,11 +74,7 @@ uint8_t Bme680HistoryStore::copy(const History& history, float* out, uint8_t max
     return 0;
 
   uint8_t count = history.count < max ? history.count : max;
-  uint8_t start = (history.count == kHistorySize) ? history.head : 0;
-  for (uint8_t i = 0; i < count; i++) {
-    uint8_t idx = (start + i) % kHistorySize;
-    out[i] = history.values[idx];
-  }
+  memcpy(out, history.values, sizeof(float) * count);
   return count;
 }
 
@@ -64,10 +82,23 @@ void Bme680HistoryStore::tick(uint32_t now_ms, const Bme680Data& data) {
   if (now_ms < _next_sample)
     return;
 
-  _next_sample = now_ms + kHistoryIntervalMs;
   _latest = data;
   if (!data.available)
+  {
+    _next_sample = now_ms + (kBaseHistoryIntervalMs * _interval_multiplier);
     return;
+  }
+
+  bool should_compact = false;
+  if (data.has_temperature && _temp.count >= kHistorySize)
+    should_compact = true;
+  if (data.has_humidity && _humidity.count >= kHistorySize)
+    should_compact = true;
+  if (data.has_pressure && _pressure.count >= kHistorySize)
+    should_compact = true;
+
+  if (should_compact && _interval_multiplier < kMaxIntervalMultiplier)
+    compact();
 
   if (data.has_temperature)
     push(_temp, data.temperature);
@@ -75,6 +106,8 @@ void Bme680HistoryStore::tick(uint32_t now_ms, const Bme680Data& data) {
     push(_humidity, data.humidity);
   if (data.has_pressure)
     push(_pressure, data.pressure);
+
+  _next_sample = now_ms + (kBaseHistoryIntervalMs * _interval_multiplier);
 }
 
 uint8_t Bme680HistoryStore::get(Bme680Metric metric, float* out, uint8_t max) const {

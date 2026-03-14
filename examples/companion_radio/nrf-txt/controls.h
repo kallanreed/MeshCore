@@ -1418,6 +1418,7 @@ public:
       _chart_config.expected_samples = Bme680HistoryStore::kHistorySize;
       _chart_config.fetch = fetchChart;
       _chart_config.format = formatChart;
+      _chart_config.status = formatChartStatus;
       _chart_config.context = this;
       _model->gotoChart(&_chart_config);
       return true;
@@ -1461,6 +1462,11 @@ private:
   static void formatChart(void* context, char* out, uint8_t out_size, float value) {
     auto* page = static_cast<SensorPage*>(context);
     Utils::formatMetricValue(out, out_size, page->_chart_metric, value);
+  }
+
+  static void formatChartStatus(void* context, char* out, uint8_t out_size) {
+    auto* page = static_cast<SensorPage*>(context);
+    snprintf(out, out_size, "%um/pt", page->_model->getBme680HistoryIntervalMin());
   }
 
 };

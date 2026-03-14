@@ -338,6 +338,13 @@ int ChartScreen::render(DisplayDriver& display) {
 
   const char* title = _config->title ? _config->title : "Chart";
   display.drawTextLeftAlign(3, 2, title);
+  if (_config->status) {
+    display.setTextSize(1);
+    char status[16];
+    _config->status(_config->context, status, sizeof(status));
+    display.drawTextRightAlign(display.width() - 3, 8, status);
+    display.setTextSize(2);
+  }
   display.drawRect(0, 20, display.width(), 1);
 
   float samples[kMaxSamples];

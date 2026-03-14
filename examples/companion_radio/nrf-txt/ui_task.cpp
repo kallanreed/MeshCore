@@ -684,6 +684,10 @@ uint8_t UITask::getBme680History(Bme680Metric metric, float* out, uint8_t max) {
   return _bme680_history.get(metric, out, max);
 }
 
+uint8_t UITask::getBme680HistoryIntervalMin() {
+  return _bme680_history.getIntervalMinutes();
+}
+
 void UITask::gotoChart(ChartConfig* config) {
   setCurrent(_sensor_chart);
   static_cast<ChartScreen*>(_sensor_chart)->setConfig(config);

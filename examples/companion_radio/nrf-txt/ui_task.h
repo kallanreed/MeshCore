@@ -143,6 +143,7 @@ public:
   RadioDetails getRadioDetails() override;
   Bme680Data getBme680Data() override;
   uint8_t getBme680History(Bme680Metric metric, float* out, uint8_t max) override;
+  uint8_t getBme680HistoryIntervalMin() override;
   void gotoChart(ChartConfig* config) override;
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;

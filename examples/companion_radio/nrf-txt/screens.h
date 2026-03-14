@@ -59,7 +59,7 @@ class ChartScreen : public UIScreen
 private:
   static constexpr int kRefreshMs = 10 * 1000;
   UIViewModel* _model;
-  static constexpr uint8_t kMaxSamples = 64;
+  static constexpr uint8_t kMaxSamples = Bme680HistoryStore::kHistorySize;
   ChartConfig* _config = nullptr;
   bool validateConfig(const char** message);
 
