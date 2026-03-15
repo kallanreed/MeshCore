@@ -975,9 +975,28 @@ public:
       _list.setSelected(0);
   }
 
+  static void onAutoAddPrompt(void* context, int result) {
+    auto* page = static_cast<AdvertPage*>(context);
+    if (!page || result != 0)
+      return;
+
+    page->_model->setAutoAddEnabled(!page->_model->isAutoAddEnabled());
+  }
+
   bool handleInput(char c) override {
     if (_list.handleInput(c))
       return true;
+
+    if (isKey(c, KeyCode::FN_ENTER)) {
+      if (_model->isAutoAddEnabled()) {
+        static const char* options[] = { "Disable Auto-Add" };
+        _model->prompt("Discover", options, 1, onAutoAddPrompt, this);
+      } else {
+        static const char* options[] = { "Enable Auto-Add" };
+        _model->prompt("Discover", options, 1, onAutoAddPrompt, this);
+      }
+      return true;
+    }
 
     if (!isKey(c, KeyCode::ENTER))
       return false;
@@ -1092,27 +1111,50 @@ public:
     page->_model->renderAfter(0);
   }
 
+  static void onDeleteAllContextPrompt(void* context, int result) {
+    if (result == 0) onContextPrompt(context, 3);  // forward to Delete All handler
+  }
+
+  static void onDeleteAllPrompt(void* context, int result) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page || result != 0)
+      return;
+
+    page->_model->deleteAllContacts();
+    page->refreshContacts();
+    page->_list.setCount(page->_index_count);
+    page->_list.reset();
+    page->_model->renderAfter(0);
+  }
+
   static void onContextPrompt(void* context, int result) {
     auto* page = static_cast<ContactPage*>(context);
-    if (!page || !page->hasSelection())
+    if (!page)
       return;
 
     static const char* ok[] = { "OK" };
     static const char* delete_options[] = { "Delete", "Cancel" };
+    static const char* delete_all_options[] = { "Delete All", "Cancel" };
     switch (result) {
       case 0:
+        if (!page->hasSelection()) return;
         if (!page->_model->getContactPathText(page->selectedContactIndex(), page->_path_text, sizeof(page->_path_text)))
           page->_path_text[0] = 0;
         page->_model->promptText("Contact Path", page->_path_text, sizeof(page->_path_text), onPathText, page);
         break;
       case 1:
+        if (!page->hasSelection()) return;
         if (!page->_model->clearContactPath(page->selectedContactIndex()))
           page->_model->prompt("Update Failed", ok, 1, nullptr, nullptr);
         else
           page->_model->renderAfter(0);
         break;
       case 2:
+        if (!page->hasSelection()) return;
         page->_model->prompt("Delete Contact?", delete_options, 2, onDeletePrompt, page);
+        break;
+      case 3:
+        page->_model->prompt("Delete ALL Contacts?", delete_all_options, 2, onDeleteAllPrompt, page);
         break;
       default:
         break;
@@ -1155,10 +1197,13 @@ public:
       return true;
 
     if (isKey(c, KeyCode::FN_ENTER)) {
-      if (!hasSelection())
-        return true;
-      static const char* options[] = { "Set Path", "Clear Path", "Delete" };
-      _model->prompt("Contact", options, 3, onContextPrompt, this);
+      if (hasSelection()) {
+        static const char* options[] = { "Set Path", "Clear Path", "Delete", "Delete All" };
+        _model->prompt("Contact", options, 4, onContextPrompt, this);
+      } else if (_index_count > 0) {
+        static const char* options[] = { "Delete All" };
+        _model->prompt("Contact", options, 1, onDeleteAllContextPrompt, this);
+      }
       return true;
     }
 

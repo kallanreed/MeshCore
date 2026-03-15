@@ -153,7 +153,10 @@ public:
     uint8_t count,
     MessageEntry* out) override;
   void markMessagesReadForContact(uint8_t contact_index) override;
+  bool isAutoAddEnabled() override;
+  void setAutoAddEnabled(bool enabled) override;
   bool deleteContact(uint8_t contact_index) override;
+  void deleteAllContacts() override;
   void gotoContactThread(uint8_t contact_index) override;
   uint32_t getBlePin() override;
   uint32_t getUptimeMin() ;

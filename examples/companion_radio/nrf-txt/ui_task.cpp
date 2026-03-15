@@ -665,8 +665,25 @@ void UITask::markMessagesReadForContact(uint8_t contact_index) {
   _message_buffer.markAllReadForContact(prefix);
 }
 
+bool UITask::isAutoAddEnabled() {
+  return (_node_prefs->manual_add_contacts & 1) == 0;
+}
+
+void UITask::setAutoAddEnabled(bool enabled) {
+  if (enabled) {
+    _node_prefs->manual_add_contacts &= ~1;  // clear bit 0
+  } else {
+    _node_prefs->manual_add_contacts |= 1;   // set bit 0
+  }
+  the_mesh.savePrefs();
+}
+
 bool UITask::deleteContact(uint8_t contact_index) {
   return the_mesh.deleteContactByIndex(contact_index);
+}
+
+void UITask::deleteAllContacts() {
+  the_mesh.deleteAllContacts();
 }
 
 void UITask::gotoContactThread(uint8_t contact_index) {

@@ -106,6 +106,7 @@ public:
   bool setContactPathByPubKey(const uint8_t* pub_key, const uint8_t* path, uint8_t path_len);
   bool addHashtagChannel(const char* name);
   bool deleteContactByIndex(uint8_t contact_index);
+  void deleteAllContacts();
   bool deleteChannelByIndex(uint8_t channel_index);
   void trackExpectedAck(uint32_t expected_ack, ContactInfo* contact);
 

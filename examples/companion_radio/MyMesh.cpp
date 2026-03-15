@@ -346,6 +346,11 @@ bool MyMesh::deleteContactByIndex(uint8_t contact_index) {
   return true;
 }
 
+void MyMesh::deleteAllContacts() {
+  resetContacts();
+  saveContacts();
+}
+
 bool MyMesh::setContactPathByPubKey(const uint8_t* pub_key, const uint8_t* path, uint8_t path_len) {
   if (!pub_key || path_len > MAX_PATH_SIZE)
     return false;
