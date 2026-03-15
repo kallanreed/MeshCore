@@ -632,9 +632,7 @@ enum class MessageListMode : uint8_t {
 };
 
 static inline bool messageHasOutgoingIndicator(const MessageEntry& entry) {
-  if (entry.direction() != MessageDirection::outgoing)
-    return false;
-  return entry.isAcked() || entry.heardRepeatState() > 0;
+  return entry.direction() == MessageDirection::outgoing;
 }
 
 static constexpr int kOutgoingIndicatorWidth = 10;
@@ -660,6 +658,7 @@ static inline void drawOutgoingIndicator(DisplayDriver& display, int x, int y, c
       display.drawXbm(x, y, icon_heard_3, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
       break;
     default:
+      display.drawXbm(x, y, icon_heard_0, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
       break;
   }
 }
