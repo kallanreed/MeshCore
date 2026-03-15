@@ -172,7 +172,10 @@ public:
     uint8_t count,
     MessageEntry* out) = 0;
   virtual void markMessagesReadForContact(uint8_t contact_index) = 0;
+  virtual bool isAutoAddEnabled() = 0;
+  virtual void setAutoAddEnabled(bool enabled) = 0;
   virtual bool deleteContact(uint8_t contact_index) = 0;
+  virtual void deleteAllContacts() = 0;
   virtual void gotoContactThread(uint8_t contact_index) = 0;
   virtual uint32_t getBlePin() = 0;
   virtual uint32_t getUptimeMin() = 0;
