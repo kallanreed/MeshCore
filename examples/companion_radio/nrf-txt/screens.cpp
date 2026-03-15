@@ -142,7 +142,12 @@ void MsgViewer::onMessageUpdate(uint32_t timestamp_ms) {
   if (!_has_message || _message.timestamp_ms != timestamp_ms)
     return;
 
-  _message.setAcked(true);
+  if (!_model)
+    return;
+
+  MessageEntry latest{};
+  if (_model->getMessageByTimestamp(timestamp_ms, &latest))
+    _message = latest;
 }
 
 int MsgViewer::render(DisplayDriver& display) {
@@ -159,9 +164,17 @@ int MsgViewer::render(DisplayDriver& display) {
 
   char age[12];
   Utils::formatAgeMillis(age, sizeof(age), _message.timestamp_ms);
-  display.drawTextRightAlign(display.width() - 2, 2, age);
-  if (_message.direction() == MessageDirection::outgoing && _message.isAcked())
-    display.fillRect(display.width() - 12, 8, 4, 4);
+  int age_right = display.width() - 2;
+  if (messageHasOutgoingIndicator(_message)) {
+    constexpr int indicator_scale = 2;
+    int indicator_w = kOutgoingIndicatorWidth * indicator_scale;
+    int indicator_h = kOutgoingIndicatorHeight * indicator_scale;
+    int indicator_x = display.width() - indicator_w - 2;
+    int indicator_y = 20 - indicator_h - 1;
+    drawOutgoingIndicator(display, indicator_x, indicator_y, _message, indicator_scale);
+    age_right = indicator_x - 4;
+  }
+  display.drawTextRightAlign(age_right, 2, age);
 
   display.drawRect(0, 20, display.width(), 1);
 

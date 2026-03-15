@@ -105,6 +105,7 @@ public:
   bool addChatContactFromRecent(const uint8_t* pub_key, const char* name);
   bool deleteContactByIndex(uint8_t contact_index);
   bool deleteChannelByIndex(uint8_t channel_index);
+  void trackExpectedAck(uint32_t expected_ack, ContactInfo* contact);
 
 protected:
   float getAirtimeBudgetFactor() const override;
@@ -118,6 +119,8 @@ protected:
 
   void sendFloodScoped(const ContactInfo& recipient, mesh::Packet* pkt, uint32_t delay_millis=0) override;
   void sendFloodScoped(const mesh::GroupChannel& channel, mesh::Packet* pkt, uint32_t delay_millis=0) override;
+  void onOwnPacketTracked(const mesh::Packet* packet, const uint8_t* packet_hash) override;
+  void onSeenDuplicatePacket(const mesh::Packet* packet, const uint8_t* packet_hash) override;
 
   void logRxRaw(float snr, float rssi, const uint8_t raw[], int len) override;
   bool isAutoAddEnabled() const override;

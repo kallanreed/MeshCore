@@ -5,6 +5,7 @@
 #include <helpers/ui/UIScreen.h>
 #include <helpers/SensorManager.h>
 #include <helpers/BaseSerialInterface.h>
+#include <helpers/ContactInfo.h>
 #include <Arduino.h>
 
 #ifdef PIN_BUZZER
@@ -69,6 +70,14 @@ public:
     (void)ack_hash;
     (void)contact;
     (void)trip_time_ms;
+  }
+  virtual void onOutgoingMessagePacketTracked(const uint8_t* packet_hash, uint8_t hash_len) {
+    (void)packet_hash;
+    (void)hash_len;
+  }
+  virtual void onOutgoingMessagePacketHeard(const uint8_t* packet_hash, uint8_t hash_len) {
+    (void)packet_hash;
+    (void)hash_len;
   }
   virtual void notify(UIEventType t = UIEventType::none) = 0;
   virtual void loop() = 0;

@@ -86,6 +86,18 @@ struct MessageEntry {
   void setKind(MessageKind value) {
     flags = static_cast<uint8_t>((flags & ~0x18) | ((static_cast<uint8_t>(value) & 0x03) << 3));
   }
+
+  uint8_t heardRepeatState() const {
+    return (flags >> 5) & 0x03;
+  }
+  void setHeardRepeatState(uint8_t value) {
+    flags = static_cast<uint8_t>((flags & ~0x60) | ((value & 0x03) << 5));
+  }
+  void advanceHeardRepeatState() {
+    uint8_t state = heardRepeatState();
+    if (state < 3)
+      setHeardRepeatState(state + 1);
+  }
 };
 
 struct RecentAdvertEntry {
@@ -182,6 +194,7 @@ public:
   virtual void resetRadioStats() = 0;
   // offset 0 is the oldest message.
   virtual uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) = 0;
+  virtual bool getMessageByTimestamp(uint32_t timestamp_ms, MessageEntry* out) = 0;
   virtual void markMessageRead(uint8_t offset) = 0;
   virtual void markMessageReadByTimestamp(uint32_t timestamp_ms) = 0;
   virtual bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) = 0;

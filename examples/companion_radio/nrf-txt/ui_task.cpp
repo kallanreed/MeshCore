@@ -143,6 +143,51 @@ bool UITask::findContactIndexByPrefix(const uint8_t* prefix, uint8_t* out_index)
   return false;
 }
 
+void UITask::rememberOutgoingPacketHash(const uint8_t* packet_hash, uint8_t hash_len) {
+  if (!packet_hash || hash_len < MAX_HASH_SIZE)
+    return;
+
+  memcpy(_pending_outgoing_packet_hash, packet_hash, MAX_HASH_SIZE);
+  _has_pending_outgoing_packet_hash = true;
+}
+
+void UITask::bindPendingOutgoingPacketHash(uint32_t timestamp_ms) {
+  if (!_has_pending_outgoing_packet_hash || timestamp_ms == 0)
+    return;
+
+  memcpy(_tracked_outgoing_packets[_next_tracked_outgoing_packet].packet_hash,
+         _pending_outgoing_packet_hash,
+         MAX_HASH_SIZE);
+  _tracked_outgoing_packets[_next_tracked_outgoing_packet].timestamp_ms = timestamp_ms;
+  _next_tracked_outgoing_packet = (_next_tracked_outgoing_packet + 1) % kTrackedOutgoingPacketCount;
+  _has_pending_outgoing_packet_hash = false;
+  memset(_pending_outgoing_packet_hash, 0, sizeof(_pending_outgoing_packet_hash));
+}
+
+uint32_t UITask::findTrackedOutgoingTimestamp(const uint8_t* packet_hash, uint8_t hash_len) {
+  if (!packet_hash || hash_len < MAX_HASH_SIZE)
+    return 0;
+
+  for (uint8_t i = 0; i < kTrackedOutgoingPacketCount; i++) {
+    if (_tracked_outgoing_packets[i].timestamp_ms == 0)
+      continue;
+    if (memcmp(_tracked_outgoing_packets[i].packet_hash, packet_hash, MAX_HASH_SIZE) != 0)
+      continue;
+    return _tracked_outgoing_packets[i].timestamp_ms;
+  }
+
+  return 0;
+}
+
+void UITask::notifyMessageUpdated(uint32_t timestamp_ms) {
+  if (timestamp_ms == 0)
+    return;
+
+  if (_msg_viewer)
+    static_cast<MsgViewer*>(_msg_viewer)->onMessageUpdate(timestamp_ms);
+  renderAfter(0);
+}
+
 void UITask::setCurrent(UIScreen* screen) {
   if (_curr != screen)
     _prev_screen = _curr;
@@ -236,9 +281,20 @@ void UITask::onDirectMessageAck(uint32_t ack_hash, const ContactInfo& contact, u
     return;
 
   _message_buffer.markAckedByTimestamp(timestamp_ms);
-  if (_msg_viewer)
-    static_cast<MsgViewer*>(_msg_viewer)->onMessageUpdate(timestamp_ms);
-  renderAfter(0);
+  notifyMessageUpdated(timestamp_ms);
+}
+
+void UITask::onOutgoingMessagePacketTracked(const uint8_t* packet_hash, uint8_t hash_len) {
+  rememberOutgoingPacketHash(packet_hash, hash_len);
+}
+
+void UITask::onOutgoingMessagePacketHeard(const uint8_t* packet_hash, uint8_t hash_len) {
+  uint32_t timestamp_ms = findTrackedOutgoingTimestamp(packet_hash, hash_len);
+  if (timestamp_ms == 0)
+    return;
+
+  _message_buffer.advanceHeardRepeatByTimestamp(timestamp_ms);
+  notifyMessageUpdated(timestamp_ms);
 }
 
 void UITask::notify(UIEventType t) {
@@ -356,15 +412,17 @@ bool UITask::sendChannelMessage(uint8_t channel_index, const char* text) {
   auto success = the_mesh.sendGroupMessage(now, details.channel, name, text, len);
   if (success) {
     char message[kMessageTextSize];
+    uint32_t timestamp_ms = millis();
     formatOutgoingMessage(message, sizeof(message), text);
     _message_buffer.addMessage(
-      millis(),
+      timestamp_ms,
       "You",
       message,
       MessageKind::channel,
       nullptr,
       channel_index,
       MessageDirection::outgoing);
+    bindPendingOutgoingPacketHash(timestamp_ms);
     renderAfter(0);
   }
   return success;
@@ -495,6 +553,7 @@ bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
   if (success) {
     char message[kMessageTextSize];
     uint32_t timestamp_ms = millis();
+    the_mesh.trackExpectedAck(expected_ack, &contact);
     formatOutgoingMessage(message, sizeof(message), text);
     _message_buffer.addMessage(
       timestamp_ms,
@@ -505,6 +564,7 @@ bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
       0xFF,
       MessageDirection::outgoing);
     rememberPendingDmAck(expected_ack, timestamp_ms);
+    bindPendingOutgoingPacketHash(timestamp_ms);
     renderAfter(0);
   }
   return success;
@@ -791,6 +851,10 @@ void UITask::resetRadioStats() {
 
 uint8_t UITask::getMessages(uint8_t offset, uint8_t count, MessageEntry* out) {
   return _message_buffer.getMessages(offset, count, out);
+}
+
+bool UITask::getMessageByTimestamp(uint32_t timestamp_ms, MessageEntry* out) {
+  return _message_buffer.getMessageByTimestamp(timestamp_ms, out);
 }
 
 void UITask::markMessageRead(uint8_t offset) {

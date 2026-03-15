@@ -47,6 +47,15 @@ class UITask : public AbstractUITask, public UIViewModel {
   static constexpr uint8_t kPendingDmAckCount = 8;
   PendingDmAck _pending_dm_acks[kPendingDmAckCount] = {};
   uint8_t _next_pending_dm_ack = 0;
+  struct TrackedOutgoingPacket {
+    uint8_t packet_hash[MAX_HASH_SIZE] = {};
+    uint32_t timestamp_ms = 0;
+  };
+  static constexpr uint8_t kTrackedOutgoingPacketCount = 8;
+  TrackedOutgoingPacket _tracked_outgoing_packets[kTrackedOutgoingPacketCount] = {};
+  uint8_t _next_tracked_outgoing_packet = 0;
+  uint8_t _pending_outgoing_packet_hash[MAX_HASH_SIZE] = {};
+  bool _has_pending_outgoing_packet_hash = false;
 
   UIScreen* _splash;
   UIScreen* _home;
@@ -67,6 +76,10 @@ class UITask : public AbstractUITask, public UIViewModel {
   void rememberPendingDmAck(uint32_t ack_hash, uint32_t timestamp_ms);
   uint32_t consumePendingDmAckTimestamp(uint32_t ack_hash);
   bool findContactIndexByPrefix(const uint8_t* prefix, uint8_t* out_index);
+  void rememberOutgoingPacketHash(const uint8_t* packet_hash, uint8_t hash_len);
+  void bindPendingOutgoingPacketHash(uint32_t timestamp_ms);
+  uint32_t findTrackedOutgoingTimestamp(const uint8_t* packet_hash, uint8_t hash_len);
+  void notifyMessageUpdated(uint32_t timestamp_ms);
 
 public:
   UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
@@ -88,6 +101,8 @@ public:
     int msgcount,
     const UIMessageMeta& meta) override;
   void onDirectMessageAck(uint32_t ack_hash, const ContactInfo& contact, uint32_t trip_time_ms) override;
+  void onOutgoingMessagePacketTracked(const uint8_t* packet_hash, uint8_t hash_len) override;
+  void onOutgoingMessagePacketHeard(const uint8_t* packet_hash, uint8_t hash_len) override;
   void notify(UIEventType t = UIEventType::none) override;
   void loop() override;
 
@@ -161,6 +176,7 @@ public:
   void gotoChart(ChartConfig* config) override;
   void resetRadioStats() override;
   uint8_t getMessages(uint8_t offset, uint8_t count, MessageEntry* out) override;
+  bool getMessageByTimestamp(uint32_t timestamp_ms, MessageEntry* out) override;
   void markMessageRead(uint8_t offset) override;
   void markMessageReadByTimestamp(uint32_t timestamp_ms) override;
   bool getPreviousMessage(MessageScope scope, const MessageEntry& current, MessageEntry* out) override;

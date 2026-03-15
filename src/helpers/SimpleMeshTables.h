@@ -40,7 +40,7 @@ public:
   }
 #endif
 
-  bool hasSeen(const mesh::Packet* packet) override {
+  bool hasSeen(const mesh::Packet* packet, uint8_t* out_hash = nullptr) override {
     if (packet->getPayloadType() == PAYLOAD_TYPE_ACK) {
       uint32_t ack;
       memcpy(&ack, packet->payload, 4);
@@ -62,6 +62,8 @@ public:
 
     uint8_t hash[MAX_HASH_SIZE];
     packet->calculatePacketHash(hash);
+    if (out_hash)
+      memcpy(out_hash, hash, MAX_HASH_SIZE);
 
     const uint8_t* sp = _hashes;
     for (int i = 0; i < MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {

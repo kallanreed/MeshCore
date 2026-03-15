@@ -15,7 +15,7 @@ public:
 */
 class MeshTables {
 public:
-  virtual bool hasSeen(const Packet* packet) = 0;
+  virtual bool hasSeen(const Packet* packet, uint8_t* out_hash = nullptr) = 0;
   virtual void clear(const Packet* packet) = 0;   // remove this packet hash from table
 };
 
@@ -28,6 +28,7 @@ class Mesh : public Dispatcher {
   RNG* _rng;
   MeshTables* _tables;
 
+  bool hasSeenPacket(const Packet* packet, uint8_t* out_hash = nullptr);
   void removeSelfFromPath(Packet* packet);
   void routeDirectRecvAcks(Packet* packet, uint32_t delay_millis);
   //void routeRecvAcks(Packet* packet, uint32_t delay_millis);
@@ -48,6 +49,8 @@ protected:
    * \returns  true, if given packet should be NOT be processed.
    */
   virtual bool filterRecvFloodPacket(Packet* packet) { return false; }
+  virtual void onOwnPacketTracked(const Packet* packet, const uint8_t* packet_hash) { (void)packet; (void)packet_hash; }
+  virtual void onSeenDuplicatePacket(const Packet* packet, const uint8_t* packet_hash) { (void)packet; (void)packet_hash; }
 
   /**
    * \brief  Check whether this packet should be forwarded (re-transmitted) or not.

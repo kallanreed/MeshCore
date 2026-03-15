@@ -357,6 +357,16 @@ bool MyMesh::deleteChannelByIndex(uint8_t channel_index) {
   return true;
 }
 
+void MyMesh::trackExpectedAck(uint32_t expected_ack, ContactInfo* contact) {
+  if (expected_ack == 0 || !contact)
+    return;
+
+  expected_ack_table[next_ack_idx].msg_sent = _ms->getMillis();
+  expected_ack_table[next_ack_idx].ack = expected_ack;
+  expected_ack_table[next_ack_idx].contact = contact;
+  next_ack_idx = (next_ack_idx + 1) % EXPECTED_ACK_TABLE_SIZE;
+}
+
 void MyMesh::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
   if (_serial->isConnected()) {
     if (is_new) {
@@ -554,6 +564,34 @@ void MyMesh::sendFloodScoped(const mesh::GroupChannel& channel, mesh::Packet* pk
     codes[1] = 0;  // REVISIT: set to 'home' Region, for sender/return region?
     sendFlood(pkt, codes, delay_millis);
   }
+}
+
+void MyMesh::onOwnPacketTracked(const mesh::Packet* packet, const uint8_t* packet_hash) {
+#ifdef DISPLAY_CLASS
+  if (!_ui || !packet_hash)
+    return;
+
+  auto type = packet->getPayloadType();
+  if (type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_GRP_TXT)
+    _ui->onOutgoingMessagePacketTracked(packet_hash, MAX_HASH_SIZE);
+#else
+  (void)packet;
+  (void)packet_hash;
+#endif
+}
+
+void MyMesh::onSeenDuplicatePacket(const mesh::Packet* packet, const uint8_t* packet_hash) {
+#ifdef DISPLAY_CLASS
+  if (!_ui || !packet_hash)
+    return;
+
+  auto type = packet->getPayloadType();
+  if (type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_GRP_TXT)
+    _ui->onOutgoingMessagePacketHeard(packet_hash, MAX_HASH_SIZE);
+#else
+  (void)packet;
+  (void)packet_hash;
+#endif
 }
 
 void MyMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp,
@@ -1087,16 +1125,10 @@ void MyMesh::handleCmdFrame(size_t len) {
       } else {
         result = sendMessage(*recipient, msg_timestamp, attempt, text, expected_ack, est_timeout);
       }
-      // TODO: add expected ACK to table
       if (result == MSG_SEND_FAILED) {
         writeErrFrame(ERR_CODE_TABLE_FULL);
       } else {
-        if (expected_ack) {
-          expected_ack_table[next_ack_idx].msg_sent = _ms->getMillis(); // add to circular table
-          expected_ack_table[next_ack_idx].ack = expected_ack;
-          expected_ack_table[next_ack_idx].contact = recipient;
-          next_ack_idx = (next_ack_idx + 1) % EXPECTED_ACK_TABLE_SIZE;
-        }
+        trackExpectedAck(expected_ack, recipient);
 
         out_frame[0] = RESP_CODE_SENT;
         out_frame[1] = (result == MSG_SEND_SENT_FLOOD) ? 1 : 0;

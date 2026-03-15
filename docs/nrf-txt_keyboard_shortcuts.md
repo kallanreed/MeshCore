@@ -27,10 +27,12 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 
 ## Contacts Page
 - `UP` / `DOWN`: Select contact.
+- `FN+D`: Delete the selected contact (opens confirm prompt).
 - `ENTER`: Open contact thread.
 
 ## Channels Page
 - `UP` / `DOWN`: Select channel.
+- `FN+D`: Delete the selected channel (opens confirm prompt).
 - `ENTER`: Open channel thread.
 
 ## Thread Screen (Contact Or Channel)

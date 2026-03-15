@@ -455,6 +455,25 @@ public:
     _entries[toIndex(index)].setAcked(true);
   }
 
+  void advanceHeardRepeatByTimestamp(uint32_t timestamp_ms) {
+    uint8_t index = 0;
+    if (!findMessageIndexByTimestamp(timestamp_ms, &index))
+      return;
+    _entries[toIndex(index)].advanceHeardRepeatState();
+  }
+
+  bool getMessageByTimestamp(uint32_t timestamp_ms, MessageEntry* out) const {
+    if (!out)
+      return false;
+
+    uint8_t index = 0;
+    if (!findMessageIndexByTimestamp(timestamp_ms, &index))
+      return false;
+
+    *out = _entries[toIndex(index)];
+    return true;
+  }
+
   void markAllRead() {
     for (uint8_t i = 0; i < _count; i++) {
       _entries[toIndex(i)].setRead(true);
@@ -612,6 +631,39 @@ enum class MessageListMode : uint8_t {
   channel
 };
 
+static inline bool messageHasOutgoingIndicator(const MessageEntry& entry) {
+  if (entry.direction() != MessageDirection::outgoing)
+    return false;
+  return entry.isAcked() || entry.heardRepeatState() > 0;
+}
+
+static constexpr int kOutgoingIndicatorWidth = 10;
+static constexpr int kOutgoingIndicatorHeight = 8;
+
+static inline void drawOutgoingIndicator(DisplayDriver& display, int x, int y, const MessageEntry& entry, int scale = 1) {
+  if (entry.direction() != MessageDirection::outgoing)
+    return;
+
+  if (entry.isAcked()) {
+    display.drawXbm(x, y, icon_heard_ack, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
+    return;
+  }
+
+  switch (entry.heardRepeatState()) {
+    case 1:
+      display.drawXbm(x, y, icon_heard_1, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
+      break;
+    case 2:
+      display.drawXbm(x, y, icon_heard_2, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
+      break;
+    case 3:
+      display.drawXbm(x, y, icon_heard_3, kOutgoingIndicatorWidth, kOutgoingIndicatorHeight, scale);
+      break;
+    default:
+      break;
+  }
+}
+
 class MessageList {
   ScrollList _list;
   UIViewModel* _model = nullptr;
@@ -669,9 +721,14 @@ class MessageList {
       len = sizeof(tmp) - 1;
     memcpy(tmp, entry.message, len);
     tmp[len] = 0;
-    bool show_ack = entry.direction() == MessageDirection::outgoing && entry.isAcked();
-    int ack_x = x + w - 4;
-    int max_text_width = w - 6 - (show_ack ? 8 : 0);
+    bool show_indicator = messageHasOutgoingIndicator(entry);
+    int indicator_padding = show_indicator ? 4 : 0;
+    int reserved_width = show_indicator ? (kOutgoingIndicatorWidth + indicator_padding) : 0;
+    int indicator_x = x + w - kOutgoingIndicatorWidth - 1;
+    int indicator_y = y + ((h - kOutgoingIndicatorHeight) / 2);
+    int max_text_width = w - 6 - reserved_width;
+    if (max_text_width < 0)
+      max_text_width = 0;
     while (tmp[0] && display.getTextWidth(tmp) > max_text_width) {
       tmp[strlen(tmp) - 1] = 0;
     }
@@ -682,8 +739,8 @@ class MessageList {
       display.fillRect(x, y + 4, 3, 3);
 
     display.drawTextLeftAlign(x + 6, y - 2, tmp);
-    if (show_ack)
-      display.fillRect(ack_x, y + 3, 4, 4);
+    if (show_indicator)
+      drawOutgoingIndicator(display, indicator_x, indicator_y, entry);
   }
 
 public:
@@ -984,6 +1041,31 @@ public:
     display.drawTextLeftAlign(x + 6, y, name_buf);
   }
 
+  static void onDeletePrompt(void* context, int result) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page || result != 0)
+      return;
+
+    if (page->_list.getCount() == 0 || page->_list.getSelected() >= page->_index_count)
+      return;
+
+    auto contact_index = page->_indexes[page->_list.getSelected()];
+    if (!page->_model->deleteContact(contact_index)) {
+      static const char* options[] = { "OK" };
+      page->_model->prompt("Delete Failed", options, 1, nullptr, nullptr);
+      return;
+    }
+
+    page->refreshContacts();
+    page->_list.setCount(page->_index_count);
+    if (page->_index_count == 0) {
+      page->_list.reset();
+    } else if (page->_list.getSelected() >= page->_index_count) {
+      page->_list.setSelected(static_cast<uint8_t>(page->_index_count - 1));
+    }
+    page->_model->renderAfter(0);
+  }
+
   ContactPage(UIViewModel* model) : UIPage(model) {
     _list.setRenderer(renderContactItem, this);
   }
@@ -1007,6 +1089,14 @@ public:
   bool handleInput(char c) override {
     if (_list.handleInput(c))
       return true;
+
+    if (isKey(c, KeyCode::FN_D)) {
+      if (_list.getCount() == 0)
+        return true;
+      static const char* options[] = { "Delete", "Cancel" };
+      _model->prompt("Delete Contact?", options, 2, onDeletePrompt, this);
+      return true;
+    }
 
     if (!isKey(c, KeyCode::ENTER))
       return false;
@@ -1055,6 +1145,31 @@ class ChannelPage : public UIPage {
     display.drawTextLeftAlign(x + 6, y, name);
   }
 
+  static void onDeletePrompt(void* context, int result) {
+    auto* page = static_cast<ChannelPage*>(context);
+    if (!page || result != 0)
+      return;
+
+    if (page->_list.getCount() == 0 || page->_list.getSelected() >= page->_index_count)
+      return;
+
+    auto channel_index = page->_indexes[page->_list.getSelected()];
+    if (!page->_model->deleteChannel(channel_index)) {
+      static const char* options[] = { "OK" };
+      page->_model->prompt("Delete Failed", options, 1, nullptr, nullptr);
+      return;
+    }
+
+    page->refreshChannels();
+    page->_list.setCount(page->_index_count);
+    if (page->_index_count == 0) {
+      page->_list.reset();
+    } else if (page->_list.getSelected() >= page->_index_count) {
+      page->_list.setSelected(static_cast<uint8_t>(page->_index_count - 1));
+    }
+    page->_model->renderAfter(0);
+  }
+
 public:
   ChannelPage(UIViewModel* model) : UIPage(model) {
     _list.setRenderer(renderChannelItem, this);
@@ -1079,6 +1194,14 @@ public:
   bool handleInput(char c) override {
     if (_list.handleInput(c))
       return true;
+
+    if (isKey(c, KeyCode::FN_D)) {
+      if (_list.getCount() == 0)
+        return true;
+      static const char* options[] = { "Delete", "Cancel" };
+      _model->prompt("Delete Channel?", options, 2, onDeletePrompt, this);
+      return true;
+    }
 
     if (!isKey(c, KeyCode::ENTER))
       return false;
@@ -1482,7 +1605,12 @@ private:
 
   static void formatChartStatus(void* context, char* out, uint8_t out_size) {
     auto* page = static_cast<SensorPage*>(context);
-    snprintf(out, out_size, "%um/pt", page->_model->getBme680HistoryIntervalMin());
+    uint32_t total_minutes = static_cast<uint32_t>(page->_model->getBme680HistoryIntervalMin())
+      * Bme680HistoryStore::kHistorySize;
+    uint32_t total_hours = (total_minutes + 30) / 60;
+    if (total_hours == 0)
+      total_hours = 1;
+    snprintf(out, out_size, "%luh", total_hours);
   }
 
 };
