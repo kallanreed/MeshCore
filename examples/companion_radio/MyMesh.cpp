@@ -2,6 +2,7 @@
 
 #include <Arduino.h> // needed for PlatformIO
 #include <Mesh.h>
+#include <SHA256.h>
 
 #define CMD_APP_START                 1
 #define CMD_SEND_TXT_MSG              2
@@ -342,6 +343,73 @@ bool MyMesh::deleteContactByIndex(uint8_t contact_index) {
     return false;
 
   saveContacts();
+  return true;
+}
+
+bool MyMesh::setContactPathByPubKey(const uint8_t* pub_key, const uint8_t* path, uint8_t path_len) {
+  if (!pub_key || path_len > MAX_PATH_SIZE)
+    return false;
+
+  ContactInfo* contact = lookupContactByPubKey(pub_key, PUB_KEY_SIZE);
+  if (!contact)
+    return false;
+
+  memset(contact->out_path, 0, sizeof(contact->out_path));
+  if (path_len == 0) {
+    contact->out_path_len = -1;
+  } else {
+    memcpy(contact->out_path, path, path_len);
+    contact->out_path_len = path_len;
+  }
+
+  saveContacts();
+  return true;
+}
+
+bool MyMesh::addHashtagChannel(const char* name) {
+  if (!name || name[0] != '#')
+    return false;
+
+  uint8_t secret[CIPHER_KEY_SIZE];
+  SHA256 sha;
+  sha.update(name, strlen(name));
+  sha.finalize(secret, sizeof(secret));
+
+  int empty_idx = -1;
+  for (int i = 0; i < MAX_GROUP_CHANNELS; i++) {
+    ChannelDetails existing{};
+    if (!getChannel(i, existing))
+      continue;
+
+    bool is_empty = true;
+    for (size_t j = 0; j < sizeof(existing.channel.secret); j++) {
+      if (existing.channel.secret[j] != 0) {
+        is_empty = false;
+        break;
+      }
+    }
+
+    if (is_empty) {
+      if (empty_idx < 0)
+        empty_idx = i;
+      continue;
+    }
+
+    if (strcmp(existing.name, name) == 0
+        || memcmp(existing.channel.secret, secret, sizeof(secret)) == 0)
+      return false;
+  }
+
+  if (empty_idx < 0)
+    return false;
+
+  ChannelDetails channel{};
+  memcpy(channel.channel.secret, secret, sizeof(secret));
+  StrHelper::strncpy(channel.name, name, sizeof(channel.name));
+  if (!setChannel(empty_idx, channel))
+    return false;
+
+  saveChannels();
   return true;
 }
 

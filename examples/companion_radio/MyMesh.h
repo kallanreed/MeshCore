@@ -103,6 +103,8 @@ public:
 
   int  getRecentlyHeard(AdvertPath dest[], int max_num);
   bool addChatContactFromRecent(const uint8_t* pub_key, const char* name);
+  bool setContactPathByPubKey(const uint8_t* pub_key, const uint8_t* path, uint8_t path_len);
+  bool addHashtagChannel(const char* name);
   bool deleteContactByIndex(uint8_t contact_index);
   bool deleteChannelByIndex(uint8_t channel_index);
   void trackExpectedAck(uint32_t expected_ack, ContactInfo* contact);

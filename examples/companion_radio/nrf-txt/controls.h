@@ -5,6 +5,7 @@
 #include <helpers/ui/UIScreen.h>
 #include "icons.h"
 #include "keys.h"
+#include "shared.h"
 #include "utils.h"
 #include "ui_view_model.h"
 
@@ -107,11 +108,13 @@ class MenuPrompt {
   void* _context = nullptr;
 
   void finish(int result) {
+    auto callback = _callback;
+    auto context = _context;
     _active = false;
-    if (_callback)
-      _callback(_context, result);
     _callback = nullptr;
     _context = nullptr;
+    if (callback)
+      callback(context, result);
   }
 
 public:
@@ -1002,13 +1005,23 @@ public:
 
 class ContactPage : public UIPage {
 public:
+  static constexpr uint8_t kContactPathTextSize = 3 * kUiPathSize;
   ScrollList _list = ScrollList(0, 0, 240, 116, 20);
   uint8_t _selected_contact_index = 0;
   uint8_t _indexes[MAX_CONTACTS] = {}; // contact indexes for UI rows
   uint8_t _index_count = 0;
+  char _path_text[kContactPathTextSize] = {};
 
   void refreshContacts() {
     _index_count = _model->getContactIndexes(_indexes, sizeof(_indexes));
+  }
+
+  bool hasSelection() const {
+    return _list.getCount() > 0 && _list.getSelected() < _index_count;
+  }
+
+  uint8_t selectedContactIndex() const {
+    return _indexes[_list.getSelected()];
   }
 
   static void renderContactItem(
@@ -1065,6 +1078,47 @@ public:
     page->_model->renderAfter(0);
   }
 
+  static void onPathText(void* context, const char* text) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page || !page->hasSelection())
+      return;
+
+    static const char* ok[] = { "OK" };
+    if (!page->_model->setContactPathText(page->selectedContactIndex(), text)) {
+      page->_model->prompt("Bad Path", ok, 1, nullptr, nullptr);
+      return;
+    }
+
+    page->_model->renderAfter(0);
+  }
+
+  static void onContextPrompt(void* context, int result) {
+    auto* page = static_cast<ContactPage*>(context);
+    if (!page || !page->hasSelection())
+      return;
+
+    static const char* ok[] = { "OK" };
+    static const char* delete_options[] = { "Delete", "Cancel" };
+    switch (result) {
+      case 0:
+        if (!page->_model->getContactPathText(page->selectedContactIndex(), page->_path_text, sizeof(page->_path_text)))
+          page->_path_text[0] = 0;
+        page->_model->promptText("Contact Path", page->_path_text, sizeof(page->_path_text), onPathText, page);
+        break;
+      case 1:
+        if (!page->_model->clearContactPath(page->selectedContactIndex()))
+          page->_model->prompt("Update Failed", ok, 1, nullptr, nullptr);
+        else
+          page->_model->renderAfter(0);
+        break;
+      case 2:
+        page->_model->prompt("Delete Contact?", delete_options, 2, onDeletePrompt, page);
+        break;
+      default:
+        break;
+    }
+  }
+
   ContactPage(UIViewModel* model) : UIPage(model) {
     _list.setRenderer(renderContactItem, this);
   }
@@ -1078,34 +1132,43 @@ public:
   }
 
   void activate() override {
+    uint8_t previous_contact_index = hasSelection() ? selectedContactIndex() : 0xff;
     refreshContacts();
     _list.setCount(_index_count);
-    _list.reset();
-    if (_list.getCount() > 0)
-      _list.setSelected(0);
+    if (_list.getCount() == 0) {
+      _list.reset();
+      return;
+    }
+
+    for (uint8_t i = 0; i < _index_count; i++) {
+      if (_indexes[i] == previous_contact_index) {
+        _list.setSelected(i);
+        return;
+      }
+    }
+
+    _list.setSelected(0);
   }
 
   bool handleInput(char c) override {
     if (_list.handleInput(c))
       return true;
 
-    if (isKey(c, KeyCode::FN_D)) {
-      if (_list.getCount() == 0)
+    if (isKey(c, KeyCode::FN_ENTER)) {
+      if (!hasSelection())
         return true;
-      static const char* options[] = { "Delete", "Cancel" };
-      _model->prompt("Delete Contact?", options, 2, onDeletePrompt, this);
+      static const char* options[] = { "Set Path", "Clear Path", "Delete" };
+      _model->prompt("Contact", options, 3, onContextPrompt, this);
       return true;
     }
 
     if (!isKey(c, KeyCode::ENTER))
       return false;
 
-    if (_list.getCount() == 0)
+    if (!hasSelection())
       return true;
 
-    if (_list.getSelected() < _index_count) {
-      _selected_contact_index = _indexes[_list.getSelected()];
-    }
+    _selected_contact_index = selectedContactIndex();
     _model->gotoContactThread(_selected_contact_index);
     return true;
   }
@@ -1116,9 +1179,31 @@ class ChannelPage : public UIPage {
   uint8_t _selected_channel_index = 0;
   uint8_t _indexes[MAX_GROUP_CHANNELS] = {}; // channel indexes for UI rows
   uint8_t _index_count = 0;
+  char _channel_name[kUiChannelNameSize] = {};
 
   void refreshChannels() {
     _index_count = _model->getChannelIndexes(_indexes, sizeof(_indexes));
+  }
+
+  bool hasSelection() const {
+    return _list.getCount() > 0 && _list.getSelected() < _index_count;
+  }
+
+  uint8_t selectedChannelIndex() const {
+    return _indexes[_list.getSelected()];
+  }
+
+  void selectChannelByName(const char* name) {
+    if (!name)
+      return;
+
+    for (uint8_t i = 0; i < _index_count; i++) {
+      auto existing = _model->getChannelName(_indexes[i]);
+      if (existing && strcmp(existing, name) == 0) {
+        _list.setSelected(i);
+        return;
+      }
+    }
   }
 
   static void renderChannelItem(
@@ -1169,6 +1254,57 @@ class ChannelPage : public UIPage {
     page->_model->renderAfter(0);
   }
 
+  static void onAddText(void* context, const char* text) {
+    auto* page = static_cast<ChannelPage*>(context);
+    if (!page)
+      return;
+
+    static const char* ok[] = { "OK" };
+    char normalized[kUiChannelNameSize] = {};
+    if (!normalizeHashtagName(text, normalized, sizeof(normalized))) {
+      page->_model->prompt("Add Failed", ok, 1, nullptr, nullptr);
+      return;
+    }
+
+    if (page->_model->hasChannelName(text)) {
+      page->_model->prompt("Channel Exists", ok, 1, nullptr, nullptr);
+      return;
+    }
+
+    if (!page->_model->addHashtagChannel(text)) {
+      page->_model->prompt("Add Failed", ok, 1, nullptr, nullptr);
+      return;
+    }
+
+    page->refreshChannels();
+    page->_list.setCount(page->_index_count);
+    memcpy(page->_channel_name, normalized, sizeof(page->_channel_name));
+    page->selectChannelByName(page->_channel_name);
+    page->_model->renderAfter(0);
+  }
+
+  static void onContextPrompt(void* context, int result) {
+    auto* page = static_cast<ChannelPage*>(context);
+    if (!page)
+      return;
+
+    switch (result) {
+      case 0:
+        page->_channel_name[0] = '#';
+        page->_channel_name[1] = 0;
+        page->_model->promptText("Hashtag Channel", page->_channel_name, sizeof(page->_channel_name), onAddText, page);
+        break;
+      case 1:
+        if (page->hasSelection()) {
+          static const char* options[] = { "Delete", "Cancel" };
+          page->_model->prompt("Delete Channel?", options, 2, onDeletePrompt, page);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
 public:
   ChannelPage(UIViewModel* model) : UIPage(model) {
     _list.setRenderer(renderChannelItem, this);
@@ -1183,35 +1319,47 @@ public:
   }
 
   void activate() override {
+    uint8_t previous_channel_index = hasSelection() ? selectedChannelIndex() : 0xff;
     refreshChannels();
     _list.setCount(_index_count);
-    _list.reset();
-    if (_list.getCount() > 0)
-      _list.setSelected(0);
+    if (_list.getCount() == 0) {
+      _list.reset();
+      return;
+    }
+
+    for (uint8_t i = 0; i < _index_count; i++) {
+      if (_indexes[i] == previous_channel_index) {
+        _list.setSelected(i);
+        return;
+      }
+    }
+
+    _list.setSelected(0);
   }
 
   bool handleInput(char c) override {
     if (_list.handleInput(c))
       return true;
 
-    if (isKey(c, KeyCode::FN_D)) {
-      if (_list.getCount() == 0)
-        return true;
-      static const char* options[] = { "Delete", "Cancel" };
-      _model->prompt("Delete Channel?", options, 2, onDeletePrompt, this);
+    if (isKey(c, KeyCode::FN_ENTER)) {
+      if (hasSelection()) {
+        static const char* options[] = { "Add Channel", "Delete" };
+        _model->prompt("Channel", options, 2, onContextPrompt, this);
+      } else {
+        static const char* options[] = { "Add Channel" };
+        _model->prompt("Channel", options, 1, onContextPrompt, this);
+      }
       return true;
     }
 
     if (!isKey(c, KeyCode::ENTER))
       return false;
 
-    if (_list.getCount() == 0)
+    if (!hasSelection())
       return true;
 
-    if (_list.getSelected() < _index_count) {
-      _selected_channel_index = _indexes[_list.getSelected()];
-      _model->gotoChannelThread(_selected_channel_index);
-    }
+    _selected_channel_index = selectedChannelIndex();
+    _model->gotoChannelThread(_selected_channel_index);
 
     return true;
   }

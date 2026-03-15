@@ -27,17 +27,17 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 
 ## Contacts Page
 - `UP` / `DOWN`: Select contact.
-- `FN+D`: Delete the selected contact (opens confirm prompt).
+- `FN+ENTER`: Open contact actions for the selected contact (`Set Path`, `Clear Path`, `Delete`).
 - `ENTER`: Open contact thread.
 
 ## Channels Page
 - `UP` / `DOWN`: Select channel.
-- `FN+D`: Delete the selected channel (opens confirm prompt).
+- `FN+ENTER`: Open channel actions (`Add Channel`, and with a selection also `Delete`).
 - `ENTER`: Open channel thread.
 
 ## Thread Screen (Contact Or Channel)
 - `ESC` or `LEFT`: Return to Home.
-- `FN+ENTER`: Compose message (opens text input).
+- `TAB` or `FN+ENTER`: Compose message (opens text input).
 - `FN+D`: Delete the current contact or channel (opens confirm prompt).
 - `FN+R`: Mark thread messages read.
 - `ENTER`: Open selected message in viewer.
@@ -45,7 +45,7 @@ These shortcuts are derived from the nrf-txt UI code in `examples/companion_radi
 
 ## Message Viewer
 - `ESC` or `LEFT` or `ENTER`: Return to previous screen.
-- `FN+ENTER`: Open compose for the current message thread.
+- `TAB` or `FN+ENTER`: Open compose for the current message thread.
 - `UP`: Previous message.
 - `DOWN`: Next message.
 

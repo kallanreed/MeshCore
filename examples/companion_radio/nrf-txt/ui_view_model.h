@@ -42,6 +42,8 @@ constexpr uint8_t kMessageBufferSize = 128; // Ring buffer capacity in number of
 constexpr uint8_t kRecentAdvertNameSize = 32;
 constexpr uint8_t kRecentAdvertMax = 8;
 constexpr uint8_t kRecentAdvertKeySize = 32; // PUB_KEY_SIZE
+constexpr uint8_t kUiPathSize = 64; // MAX_PATH_SIZE
+constexpr uint8_t kUiChannelNameSize = 32; // ChannelDetails::name
 
 enum class MessageKind : uint8_t {
   unknown,
@@ -152,10 +154,15 @@ public:
     uint8_t count,
     MessageEntry* out) = 0;
   virtual void markMessagesReadForChannel(uint8_t channel_index) = 0;
+  virtual bool hasChannelName(const char* name) = 0;
+  virtual bool addHashtagChannel(const char* name) = 0;
   virtual bool deleteChannel(uint8_t channel_index) = 0;
   virtual void gotoChannelThread(uint8_t channel_index) = 0;
   virtual uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) = 0;
   virtual const char* getContactName(uint8_t contact_index) = 0;
+  virtual bool getContactPathText(uint8_t contact_index, char* out, uint8_t out_size) = 0;
+  virtual bool setContactPathText(uint8_t contact_index, const char* text) = 0;
+  virtual bool clearContactPath(uint8_t contact_index) = 0;
   virtual bool sendContactMessage(uint8_t contact_index, const char* text) = 0;
   virtual uint8_t getMsgCountForContact(uint8_t contact_index) = 0;
   virtual uint8_t getUnreadCountForContact(uint8_t contact_index) = 0;

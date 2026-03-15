@@ -813,7 +813,10 @@ bool BaseChatMesh::setChannel(int idx, const ChannelDetails& src) {
 
   if (idx >= 0 && idx < MAX_GROUP_CHANNELS) {
     channels[idx] = src;
-    if (memcmp(&src.channel.secret[16], zeroes, 16) == 0) {
+    if (memcmp(src.channel.secret, zeroes, 16) == 0
+        && memcmp(&src.channel.secret[16], zeroes, 16) == 0) {
+      memset(channels[idx].channel.hash, 0, sizeof(channels[idx].channel.hash));
+    } else if (memcmp(&src.channel.secret[16], zeroes, 16) == 0) {
       mesh::Utils::sha256(channels[idx].channel.hash, sizeof(channels[idx].channel.hash), src.channel.secret, 16);  // 128-bit key
     } else {
       mesh::Utils::sha256(channels[idx].channel.hash, sizeof(channels[idx].channel.hash), src.channel.secret, 32);  // 256-bit key

@@ -135,10 +135,15 @@ public:
     uint8_t count,
     MessageEntry* out) override;
   void markMessagesReadForChannel(uint8_t channel_index) override;
+  bool hasChannelName(const char* name) override;
+  bool addHashtagChannel(const char* name) override;
   bool deleteChannel(uint8_t channel_index) override;
   void gotoChannelThread(uint8_t channel_index) override;
   uint8_t getContactIndexes(uint8_t* indexes, uint8_t max) override;
   const char* getContactName(uint8_t contact_index) override;
+  bool getContactPathText(uint8_t contact_index, char* out, uint8_t out_size) override;
+  bool setContactPathText(uint8_t contact_index, const char* text) override;
+  bool clearContactPath(uint8_t contact_index) override;
   bool sendContactMessage(uint8_t contact_index, const char* text) override;
   uint8_t getMsgCountForContact(uint8_t contact_index) override;
   uint8_t getUnreadCountForContact(uint8_t contact_index) override;

@@ -190,7 +190,7 @@ bool MsgViewer::handleInput(char c) {
     return true;
   }
 
-  if (isKey(c, KeyCode::FN_ENTER)) {
+  if (isAnyKey(c, KeyCode::FN_ENTER, KeyCode::TAB)) {
     if (_model->openComposeForMessage(_message))
       return true;
   }
@@ -321,7 +321,7 @@ bool ThreadScreen::handleInput(char c) {
     return true;
   }
 
-  if (isKey(c, KeyCode::FN_ENTER)) {
+  if (isAnyKey(c, KeyCode::FN_ENTER, KeyCode::TAB)) {
     openComposePrompt();
     return true;
   }

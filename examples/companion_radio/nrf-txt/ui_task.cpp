@@ -9,6 +9,7 @@
 #include <helpers/TxtDataHelpers.h>
 #include "screens.h"
 #include "keys.h"
+#include "shared.h"
 #include "utf8.h"
 
 constexpr uint32_t auto_off_ms = 15 * 1000;
@@ -483,6 +484,39 @@ void UITask::markMessagesReadForChannel(uint8_t channel_index) {
   _message_buffer.markAllReadForChannel(channel_index);
 }
 
+bool UITask::hasChannelName(const char* name) {
+  char normalized[32] = {};
+  if (!normalizeHashtagName(name, normalized, sizeof(normalized)))
+    return false;
+
+  for (uint8_t i = 0; i < MAX_GROUP_CHANNELS; i++) {
+    ChannelDetails details;
+    if (!the_mesh.getChannel(i, details))
+      continue;
+
+    bool has_secret = false;
+    for (size_t j = 0; j < sizeof(details.channel.secret); j++) {
+      if (details.channel.secret[j] != 0) {
+        has_secret = true;
+        break;
+      }
+    }
+
+    if (has_secret && strcmp(details.name, normalized) == 0)
+      return true;
+  }
+
+  return false;
+}
+
+bool UITask::addHashtagChannel(const char* name) {
+  char normalized[32] = {};
+  if (!normalizeHashtagName(name, normalized, sizeof(normalized)))
+    return false;
+
+  return the_mesh.addHashtagChannel(normalized);
+}
+
 bool UITask::deleteChannel(uint8_t channel_index) {
   return the_mesh.deleteChannelByIndex(channel_index);
 }
@@ -531,6 +565,35 @@ const char* UITask::getContactName(uint8_t contact_index) {
     contact.id.pub_key[4],
     contact.id.pub_key[5]);
   return name_buf;
+}
+
+bool UITask::getContactPathText(uint8_t contact_index, char* out, uint8_t out_size) {
+  ContactInfo contact{};
+  if (!getChatContactByIndex(contact_index, contact))
+    return false;
+
+  return formatPathText(contact.out_path, contact.out_path_len, out, out_size);
+}
+
+bool UITask::setContactPathText(uint8_t contact_index, const char* text) {
+  ContactInfo contact{};
+  if (!getChatContactByIndex(contact_index, contact) || !text)
+    return false;
+
+  uint8_t path[MAX_PATH_SIZE] = {};
+  uint8_t path_len = 0;
+  if (!parsePathText(text, path, &path_len, MAX_PATH_SIZE))
+    return false;
+
+  return the_mesh.setContactPathByPubKey(contact.id.pub_key, path, path_len);
+}
+
+bool UITask::clearContactPath(uint8_t contact_index) {
+  ContactInfo contact{};
+  if (!getChatContactByIndex(contact_index, contact))
+    return false;
+
+  return the_mesh.setContactPathByPubKey(contact.id.pub_key, nullptr, 0);
 }
 
 bool UITask::sendContactMessage(uint8_t contact_index, const char* text) {
