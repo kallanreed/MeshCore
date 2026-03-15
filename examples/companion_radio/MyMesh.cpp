@@ -1061,11 +1061,17 @@ void MyMesh::begin(bool has_display) {
 
   resetContacts();
   _store->loadContacts(this);
-#ifdef HELTEC_T114_NRF_TXT
+#ifdef BUILD_EPOCH
+  getRTCClock()->setCurrentTime(BUILD_EPOCH);
+  getRTCClock()->setValid();
+#elif defined(HELTEC_T114_NRF_TXT)
   // Use a sane starting time so the clock is at least usable.
   getRTCClock()->setCurrentTime(1767254400); // 2026-01-01 00:00:00 UTC
 #else
   bootstrapRTCfromContacts();
+#endif
+#ifdef BUILD_TZ_OFFSET
+  _prefs.tz_offset = constrain((int)BUILD_TZ_OFFSET, -12, 14);
 #endif
   addChannel("Public", PUBLIC_GROUP_PSK); // pre-configure Andy's public channel
   _store->loadChannels(this);
