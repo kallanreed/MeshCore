@@ -32,5 +32,12 @@ struct NodePrefs {  // persisted to file
   uint8_t client_repeat;
   uint8_t path_hash_mode;    // which path mode to use when sending
   uint8_t autoadd_max_hops;  // 0 = no limit, 1 = direct (0 hops), N = up to N-1 hops (max 64)
+  char default_scope_name[31];
+  uint8_t default_scope_key[16];
+  // Reserved for future upstream prefs. On each upstream merge that adds
+  // new fields, place them above this line and shrink this array by exactly
+  // that many bytes so the fork fields below stay at fixed file offsets.
+  uint8_t _reserved_upstream[128];
+  // --- Fork-specific fields below ---
   int8_t tz_offset;          // timezone offset from UTC in hours
 };
