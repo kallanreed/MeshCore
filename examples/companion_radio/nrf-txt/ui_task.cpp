@@ -540,6 +540,29 @@ uint8_t UITask::getContactIndexes(uint8_t* indexes, uint8_t max) {
       continue;
     indexes[count++] = static_cast<uint8_t>(i);
   }
+
+  // Sort: contacts with unread messages first, then alphabetical
+  for (uint8_t i = 0; i < count; i++) {
+    for (uint8_t j = i + 1; j < count; j++) {
+      ContactInfo a{}, b{};
+      the_mesh.getContactByIdx(indexes[i], a);
+      the_mesh.getContactByIdx(indexes[j], b);
+      uint8_t ua = _message_buffer.getUnreadCountForContact(a.id.pub_key);
+      uint8_t ub = _message_buffer.getUnreadCountForContact(b.id.pub_key);
+      bool swap = false;
+      if (ub > 0 && ua == 0) {
+        swap = true;
+      } else if ((ua > 0) == (ub > 0)) {
+        swap = strcasecmp(b.name, a.name) < 0;
+      }
+      if (swap) {
+        uint8_t tmp = indexes[i];
+        indexes[i] = indexes[j];
+        indexes[j] = tmp;
+      }
+    }
+  }
+
   return count;
 }
 
