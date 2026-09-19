@@ -7,6 +7,17 @@ static constexpr int kYOffset = 0;
 //static constexpr uint16_t LightColor = ST77XX_ORANGE;
 static constexpr uint16_t LightColor = ST77XX_WHITE;
 
+// Color scheme
+ColorVal UIColor::window_bkg = OLEDDISPLAY_COLOR::BLACK;
+ColorVal UIColor::title_bkg = OLEDDISPLAY_COLOR::BLACK;
+ColorVal UIColor::title_txt = OLEDDISPLAY_COLOR::WHITE;
+ColorVal UIColor::primary_txt = OLEDDISPLAY_COLOR::WHITE;
+ColorVal UIColor::secondary_txt = OLEDDISPLAY_COLOR::WHITE;
+ColorVal UIColor::warning_txt = OLEDDISPLAY_COLOR::WHITE;
+ColorVal UIColor::popup_bkg = OLEDDISPLAY_COLOR::BLACK;
+ColorVal UIColor::popup_txt = OLEDDISPLAY_COLOR::WHITE;
+ColorVal UIColor::corp_blue = OLEDDISPLAY_COLOR::WHITE;
+
 static char PassThroughFontLookup(const uint8_t ch) {
   return (char)ch;
 }
@@ -68,7 +79,7 @@ void ST7789DisplayNrfTxt::clear() {
   display.clear();
 }
 
-void ST7789DisplayNrfTxt::startFrame(Color bkg) {
+void ST7789DisplayNrfTxt::startFrame(ColorVal bkg) {
   display.clear();
   _color = LightColor;
   display.setRGB(_color);
@@ -88,7 +99,7 @@ void ST7789DisplayNrfTxt::setTextSize(int sz) {
   }
 }
 
-void ST7789DisplayNrfTxt::setColor(Color c) {
+void ST7789DisplayNrfTxt::setColor(ColorVal c) {
   switch (c) {
   case DisplayDriver::DARK:
     _color = ST77XX_BLACK;

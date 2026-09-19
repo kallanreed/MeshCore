@@ -40,9 +40,12 @@ int Mesh::searchChannelsByHash(const uint8_t* hash, GroupChannel channels[], int
 
 bool Mesh::hasSeenPacket(const Packet* packet, uint8_t* out_hash) {
   uint8_t packet_hash[MAX_HASH_SIZE];
-  bool seen = _tables->hasSeen(packet, out_hash ? out_hash : packet_hash);
-  if (seen)
+  bool seen = _tables->wasSeen(packet, out_hash ? out_hash : packet_hash);
+  if (seen) {
     onSeenDuplicatePacket(packet, out_hash ? out_hash : packet_hash);
+  } else {
+    _tables->markSeen(packet);
+  }
   return seen;
 }
 
@@ -163,6 +166,10 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
               if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH) {
                 int k = 0;
                 uint8_t path_len = data[k++];
+                if (!Packet::isValidPathLen(path_len)) {
+                  MESH_DEBUG_PRINTLN("%s PAYLOAD_TYPE_PATH, bad path_len: %u", getLogDateTime(), (uint32_t)path_len);
+                  break;   // reject bad encoding
+                }
                 uint8_t hash_size = (path_len >> 6) + 1;
                 uint8_t hash_count = path_len & 63;
                 uint8_t* path = &data[k]; k += hash_size*hash_count;

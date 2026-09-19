@@ -129,7 +129,7 @@ bool UITask::findContactIndexByPrefix(const uint8_t* prefix, uint8_t* out_index)
   if (!prefix || !out_index)
     return false;
 
-  auto total = the_mesh.getNumContacts();
+  auto total = the_mesh.getTotalContactSlots();
   for (uint32_t i = 0; i < static_cast<uint32_t>(total); i++) {
     ContactInfo contact{};
     if (!getChatContactByIndex(static_cast<uint8_t>(i), contact))
@@ -531,7 +531,7 @@ uint8_t UITask::getContactIndexes(uint8_t* indexes, uint8_t max) {
     return 0;
 
   uint8_t count = 0;
-  auto total = the_mesh.getNumContacts();
+  auto total = the_mesh.getTotalContactSlots();
   for (uint32_t i = 0; i < static_cast<uint32_t>(total) && count < max; i++) {
     ContactInfo contact{};
     if (!the_mesh.getContactByIdx(i, contact))
@@ -701,23 +701,23 @@ uint32_t UITask::getUptimeMin() {
 }
 
 bool UITask::isBleEnabled() {
-  return isSerialEnabled();
+  return isBluetoothEnabled();
 }
 
 void UITask::toggleBle() {
-  if (isSerialEnabled()) {
-    disableSerial();
+  if (isBluetoothEnabled()) {
+    disableBluetooth();
   } else {
-    enableSerial();
+    enableBluetooth();
   }
 }
 
 bool UITask::isCampModeEnabled() {
-  return _node_prefs->client_repeat != 0;
+  return _node_prefs->isRepeatEn();
 }
 
 void UITask::toggleCampMode() {
-  _node_prefs->client_repeat = _node_prefs->client_repeat ? 0 : 1;
+  _node_prefs->setRepeatEn(!_node_prefs->isRepeatEn());
   the_mesh.savePrefs();
 }
 

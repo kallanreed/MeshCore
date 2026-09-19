@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <MeshCore.h>
 #include <cstdint>
-#include <helpers/BaseSerialInterface.h>
+#include <helpers/MultiSerialInterface.h>
 #include <helpers/RefCountedDigitalPin.h>
 #include <helpers/SensorManager.h>
 #include <helpers/sensors/LPPDataHelpers.h>
@@ -82,7 +82,7 @@ class UITask : public AbstractUITask, public UIViewModel {
   void notifyMessageUpdated(uint32_t timestamp_ms);
 
 public:
-  UITask(mesh::MainBoard* board, BaseSerialInterface* serial)
+  UITask(mesh::MainBoard* board, MultiSerialInterface* serial)
     : AbstractUITask(board, serial)
     , _sensors_lpp(128)
   { }
