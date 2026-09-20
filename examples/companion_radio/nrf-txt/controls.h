@@ -731,12 +731,13 @@ class MessageList {
     int max_text_width = w - 6 - reserved_width;
     if (max_text_width < 0)
       max_text_width = 0;
+
+    display.setTextSize(1);
     while (tmp[0] && display.getTextWidth(tmp) > max_text_width) {
       tmp[strlen(tmp) - 1] = 0;
     }
 
     display.setColor(DisplayDriver::LIGHT);
-    display.setTextSize(1);
     if (!entry.isRead())
       display.fillRect(x, y + 4, 3, 3);
 
